@@ -49,10 +49,11 @@ async function loadUsers() {
         if (e.code === 'ENOENT') { //
             console.warn('--- app.js: users_db.json no encontrado. Iniciando con usuarios vacíos. ---');
             // Opcional: Crear un users_db.json por defecto si no existe para empezar
-            users = [{ id: 'admin1', username: 'admin', password: 'password', role: 'admin' }]; //
+            // Asegúrate de que este admin por defecto sea solo para desarrollo.
+            users = [{ id: 'admin1', username: 'devadmin', password: 'devpassword', role: 'admin' }]; // Considera cambiar esto para producción
             try {
                 await fsPromises.writeFile(USERS_DB_PATH, JSON.stringify({ users }, null, 2), 'utf8'); // Usar fsPromises
-                console.log('--- app.js: users_db.json por defecto creado con usuario admin ---');
+                console.log('--- app.js: users_db.json por defecto creado con usuario admin (devadmin/devpassword) ---');
             } catch (writeErr) {
                 console.error('--- app.js: Error al crear users_db.json por defecto:', writeErr); //
             }
@@ -138,29 +139,40 @@ app.get('/', (req, res) => {
     if (req.session.isAuthenticated) { //
         return res.redirect('/preguntas'); //
     }
-    res.sendFile(path.join(__dirname, 'public', 'login.html')); //
+    res.sendFile(path.join(__dirname, 'public', 'preguntas.html')); //
 });
 
 // Manejo del login
 app.post('/login', async (req, res) => {
-    const { username, password } = req.body; //
-    const user = users.find(u => u.username === username && u.password === password); //
+    const { username, password } = req.body;
 
-    if (!user) { //
-        req.session.isAuthenticated = false; //
-        return res.status(401).json({ success: false, message: 'Usuario o Contraseña incorrectos' }); //
+    // Validar admin desde Environment Variables
+    const adminUser = process.env.ADMIN_USER;
+    const adminPass = process.env.ADMIN_PASS;
+
+    if (username === adminUser && password === adminPass) {
+        req.session.isAuthenticated = true;
+        req.session.userId = 'admin'; // Assign a unique ID for the admin user
+        req.session.userRole = 'admin';
+        return res.json({ success: true, message: 'Login de admin exitoso', redirectURL: '/preguntas' });
     }
-    else {
-        if (user.role) { // Verificar si el usuario existe Y tiene un rol
-            req.session.isAuthenticated = true; //
-            req.session.userId = user.id; //
-            req.session.userRole = user.role; // Almacenar el rol del usuario en la sesión
-            // Redirigir a la página principal después del login exitoso
-            return res.json({ success: true, message: 'Login exitoso', redirectURL: '/preguntas' }); //
-        } else {
-            req.session.isAuthenticated = false; //
-            return res.status(401).json({ success: false, message: 'Usuario sin rol. Contacta a administrador' }); //
-        }
+
+    // Buscar en la base de datos local (JSON)
+    const user = users.find(u => u.username === username && u.password === password);
+
+    if (!user) {
+        req.session.isAuthenticated = false;
+        return res.status(401).json({ success: false, message: 'Usuario o Contraseña incorrectos' });
+    }
+
+    if (user.role) {
+        req.session.isAuthenticated = true;
+        req.session.userId = user.id;
+        req.session.userRole = user.role;
+        return res.json({ success: true, message: 'Login exitoso', redirectURL: '/preguntas' });
+    } else {
+        req.session.isAuthenticated = false;
+        return res.status(401).json({ success: false, message: 'Usuario sin rol. Contacta a administrador' });
     }
 });
 
@@ -194,7 +206,17 @@ app.get('/api/userinfo', isAuthenticated, (req, res) => {
     }
 
     // Busca el usuario completo en tu array 'users' cargado, si necesitas más datos que solo id y rol.
-    const user = users.find(u => u.id === req.session.userId); //
+    // Handle 'admin' user from environment variables explicitly
+    let user;
+    if (req.session.userId === 'admin') {
+        user = {
+            id: 'admin',
+            username: process.env.ADMIN_USER,
+            role: 'admin'
+        };
+    } else {
+        user = users.find(u => u.id === req.session.userId);
+    }
 
     if (user) { //
         res.json({
@@ -286,7 +308,7 @@ async function loadUbicaciones() {
                     const match = row.geometry.match(/POINT \(([-]?\d+\.?\d*)\s+([-]?\d+\.?\d*)\)/); //
                     if (match && match.length === 3) { //
                         longitud = parseFloat(match[1]); // El primer número es longitud
-                        latitud = parseFloat(match[2]);  // El segundo número es latitud
+                        latitud = parseFloat(match[2]);  // El segundo número es latitud
                     }
                 }
 
