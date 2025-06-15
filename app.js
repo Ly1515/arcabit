@@ -32,6 +32,7 @@ console.log(`--- app.js: Puerto configurado a ${PORT} ---`);
 let users = []; // Declarar users en un scope más alto
 const USERS_DB_PATH = path.join(__dirname, 'users_db.json');
 
+
 async function loadUsers() {
     try {
         const data = await fsPromises.readFile(USERS_DB_PATH, 'utf8'); // Usar fsPromises
@@ -125,6 +126,8 @@ app.use('/css', express.static(path.join(__dirname, 'css')));
 // Sirve la carpeta 'img' bajo la ruta '/img'.
 // Esto hará que '/img/logo.png' sea accesible.
 app.use('/img', express.static(path.join(__dirname, 'img')));
+
+app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 
 // --- RUTAS DE AUTENTICACIÓN ---
