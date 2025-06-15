@@ -51,9 +51,9 @@ async function loadUsers() {
             // Opcional: Crear un users_db.json por defecto si no existe para empezar
             // Asegúrate de que este admin por defecto sea solo para desarrollo.
             users = [
-                { id: 'admin1', username: 'devadmin', password: 'devpassword', role: 'admin' },
-                { id: 'super_user1', username: 'superuser', password: 'superpass', role: 'super-user' }, // Nuevo super-user por defecto
-                { id: 'regular_user1', username: 'regularuser', password: 'regularpass', role: 'user' } // Usuario normal por defecto
+                { id: 'json_admin_01', username: 'adminjson', password: 'passwordjson', role: 'admin' },
+                { id: 'json_super_user_01', username: 'superuserjson', password: 'superpassjson', role: 'super-user' },
+                { id: 'json_regular_user_01', username: 'regularuserjson', password: 'regularpassjson', role: 'user' }
             ];
             try {
                 await fsPromises.writeFile(USERS_DB_PATH, JSON.stringify({ users }, null, 2), 'utf8'); // Usar fsPromises
@@ -150,7 +150,7 @@ app.get('/', (req, res) => {
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
-    // Validar admin desde Environment Variables (la máxima autoridad)
+    // 1. Validar Super Administrador desde Environment Variables (la máxima autoridad)
     const adminUser = process.env.ADMIN_USER;
     const adminPass = process.env.ADMIN_PASS;
 
@@ -158,10 +158,21 @@ app.post('/login', async (req, res) => {
         req.session.isAuthenticated = true;
         req.session.userId = 'env_admin'; // ID único para el admin de ENV
         req.session.userRole = 'admin'; // Asignamos el rol 'admin'
-        return res.json({ success: true, message: 'Login de admin (ENV) exitoso', redirectURL: '/preguntas' });
+        return res.json({ success: true, message: 'Login de Super Admin (ENV) exitoso', redirectURL: '/preguntas' });
     }
 
-    // Buscar en la base de datos local (JSON) para otros roles (admin, super-user, user)
+    // 2. Validar Super Usuario desde Environment Variables
+    const superUserEnv = process.env.SUPERUSER_USER;
+    const superPassEnv = process.env.SUPERUSER_PASS;
+
+    if (username === superUserEnv && password === superPassEnv) {
+        req.session.isAuthenticated = true;
+        req.session.userId = 'env_superuser'; // ID único para el super user de ENV
+        req.session.userRole = 'super-user'; // Asignamos el rol 'super-user'
+        return res.json({ success: true, message: 'Login de Super User (ENV) exitoso', redirectURL: '/preguntas' });
+    }
+
+    // 3. Buscar en la base de datos local (JSON) para otros roles (admin, super-user, user)
     const user = users.find(u => u.username === username && u.password === password);
 
     if (!user) {
@@ -210,23 +221,28 @@ app.get('/api/userinfo', isAuthenticated, (req, res) => {
         return res.status(401).json({ error: 'No autenticado' }); //
     }
 
-    // Busca el usuario completo en tu array 'users' cargado, si necesitas más datos que solo id y rol.
-    // Handle 'admin' user from environment variables explicitly
     let user;
     if (req.session.userId === 'env_admin') { // Identificador del admin de ENV
         user = {
             id: 'env_admin',
-            username: process.env.ADMIN_USER,
+            nombre: process.env.ADMIN_USER, // Usa el nombre de usuario del .env
             role: 'admin'
         };
+    } else if (req.session.userId === 'env_superuser') { // Identificador del super user de ENV
+        user = {
+            id: 'env_superuser',
+            nombre: process.env.SUPERUSER_USER, // Usa el nombre de usuario del .env
+            role: 'super-user'
+        };
     } else {
+        // Busca el usuario completo en tu array 'users' cargado, si necesitas más datos que solo id y rol.
         user = users.find(u => u.id === req.session.userId);
     }
 
     if (user) { //
         res.json({
             id: user.id, //
-            nombre: user.username, // Usa 'username' en lugar de 'nombre' si así lo tienes en users_db.json
+            nombre: user.nombre, // O user.username si así lo tienes en users_db.json
             role: user.role //
         });
     } else {
