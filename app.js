@@ -10,6 +10,7 @@ import csv from 'csv-parser'; // Para parsear archivos CSV
 import * as turf from '@turf/turf'; // Para operaciones geoespaciales
 import { fileURLToPath } from 'url';
 import { Readable } from 'stream'; // Importar Readable para el pipe del CSV
+import 'dotenv/config'; // Carga las variables de entorno al inicio. ¡ESENCIAL!
 
 // Reemplazo para __dirname y __filename en Módulos ES
 const __filename = fileURLToPath(import.meta.url);
