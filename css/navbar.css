@@ -1,0 +1,60 @@
+/* Custom CSS para el diseño específico del navbar */
+
+/* Estilo para el contenedor del título "Mi Aplicación" */
+.app-title-container {
+    background-color: white; /* Fondo blanco */
+    color: #2c3e50; /* Texto oscuro para el título */
+    /* Las clases de Tailwind 'px-4 py-2 rounded-lg' ya manejan el padding y el radio */
+    /* Si necesitas un radio más específico que 'rounded-lg', puedes añadirlo aquí con 'border-radius: Xpx;' */
+}
+
+/* Ajustes generales del navbar para coincidir con la imagen */
+.navbar {
+    background-color: #2c3e50; /* Fondo azul/gris oscuro como en la imagen */
+    padding: 15px 30px; /* Ajustar el padding para que sea más amplio */
+}
+
+/* Estilo para los enlaces de navegación */
+.navbar #navbar-links a {
+    color: #ecf0f1; /* Color de texto claro para los enlaces */
+    text-decoration: none;
+    transition: color 0.3s ease; /* Transición suave para el color */
+    padding: 8px 12px; /* Ajustar padding de los enlaces para un área de clic más grande */
+}
+
+.navbar #navbar-links a:hover {
+    color: #3498db; /* Azul más claro al pasar el ratón */
+    background-color: transparent; /* Asegurarse de que no haya un fondo gris si ya usas hover:bg-gray-700 */
+}
+
+/* Estilo para el botón de cerrar sesión */
+.navbar #logout-button {
+    background-color: #e74c3c; /* Rojo para el botón */
+    color: white;
+    padding: 8px 18px; /* Ajustar padding del botón */
+    border-radius: 5px; /* Esquinas ligeramente redondeadas */
+    transition: background-color 0.3s ease;
+    margin-left: 20px; /* Espacio a la izquierda del botón */
+}
+
+.navbar #logout-button:hover {
+    background-color: #c0392b; /* Rojo más oscuro al pasar el ratón */
+}
+
+/* Opcional: Estilo de la barra de desplazamiento (webkit browsers) */
+::-webkit-scrollbar {
+    width: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: #444; /* Pista gris oscura */
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888; /* Pulgar gris */
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555; /* Gris más oscuro al pasar el ratón */
+}

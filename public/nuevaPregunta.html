@@ -1,0 +1,1017 @@
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Gestor de Preguntas y Chat de Soporte</title>
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+            integrity="sha512-Fo3rlrZj/k7ujTnHg4C8xK7Sg/lY2W3u3nQ5s1C2e3R3O3h3O3l3S3T3U3V3W3X3Y3Z"
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+        />
+        <script src="https://cdn.tailwindcss.com"></script> 
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="/css/navbar.css">
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background-color: #f0f2f5;
+                margin: 0;
+                padding: 0; /* Will be adjusted by JS after navbar loads */
+                display: flex;
+                flex-direction: column; /* Allows content to flow after navbar */
+                min-height: 100vh;
+                color: #333;
+            }
+
+            /* Placeholder for the navbar, its height will be adjusted dynamically with JS */
+            #navbar-placeholder {
+                width: 100%;
+                flex-shrink: 0; /* Prevents it from shrinking */
+            }
+
+            .container {
+                display: flex;
+                width: 100%;
+                max-width: 1200px;
+                margin: 20px auto;
+                gap: 20px;
+                padding: 0 15px;
+                flex-grow: 1; /* Allows the container to take up remaining space */
+            }
+
+            /* Columna de Gestor de Preguntas */
+            .preguntas-column {
+                flex: 2;
+                background-color: #fff;
+                padding: 25px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            }
+
+            .preguntas-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 25px;
+            }
+
+            .preguntas-header h1 {
+                margin: 0;
+                font-size: 1.8em;
+                color: #2c3e50;
+            }
+
+            .add-button {
+                background-color: #28a745;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 1em;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                transition: background-color 0.3s ease;
+            }
+
+            .add-button:hover {
+                background-color: #218838;
+            }
+
+            /* Estilos para las tarjetas de preguntas */
+            .pregunta-card {
+                background-color: #fff;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 15px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
+            }
+
+            .pregunta-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+            }
+
+            .pregunta-card h3 {
+                margin-top: 0;
+                margin-bottom: 15px;
+                color: #34495e;
+                font-size: 1.3em;
+                border-bottom: 1px dashed #eee;
+                padding-bottom: 10px;
+            }
+
+            .pregunta-card .options-list,
+            .pregunta-card .checkbox-list {
+                list-style: none;
+                padding: 0;
+                margin-top: 10px;
+                margin-bottom: 15px;
+            }
+
+            .pregunta-card .options-list li,
+            .pregunta-card .checkbox-list li {
+                margin-bottom: 8px;
+                color: #555;
+                font-size: 0.95em;
+                display: flex;
+                align-items: center;
+            }
+
+            .pregunta-card .options-list input[type="radio"],
+            .pregunta-card .checkbox-list input[type="checkbox"] {
+                margin-right: 8px;
+                transform: scale(1.1);
+            }
+
+            .pregunta-card .text-response {
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                padding: 10px;
+                font-style: italic;
+                color: #666;
+                margin-top: 10px;
+                background-color: #f9f9f9;
+            }
+
+            .pregunta-actions {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                margin-top: 15px;
+                border-top: 1px solid #f0f0f0;
+                padding-top: 15px;
+            }
+
+            .pregunta-actions button {
+                padding: 8px 15px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 0.9em;
+                transition: background-color 0.3s ease;
+            }
+
+            .pregunta-actions .edit-button {
+                background-color: #007bff;
+                color: white;
+            }
+
+            .pregunta-actions .edit-button:hover {
+                background-color: #0056b3;
+            }
+
+            .pregunta-actions .delete-button {
+                background-color: #dc3545;
+                color: white;
+            }
+
+            .pregunta-actions .delete-button:hover {
+                background-color: #c82333;
+            }
+
+            /* Columna del Chat de Soporte */
+            .chat-column {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                background-color: #fff;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+                overflow: hidden;
+                max-height: 80vh;
+                transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+                transform: translateX(100%);
+                opacity: 0;
+                position: fixed;
+                right: 20px;
+                top: 20px; /* Adjust if navbar covers it */
+                width: 350px;
+                z-index: 1000;
+                height: calc(100vh - 40px); /* Adjust if navbar covers it */
+                box-sizing: border-box;
+            }
+
+            .chat-column.active {
+                transform: translateX(0);
+                opacity: 1;
+            }
+
+            .chat-header {
+                background-color: #007bff;
+                color: white;
+                padding: 15px 20px;
+                font-size: 1.2em;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .chat-header button {
+                background: none;
+                border: none;
+                color: white;
+                font-size: 1.5em;
+                cursor: pointer;
+            }
+
+            .chat-messages {
+                flex-grow: 1;
+                padding: 15px;
+                overflow-y: auto;
+                background-color: #f9f9f9;
+                border-bottom: 1px solid #eee;
+            }
+
+            .chat-message {
+                margin-bottom: 10px;
+                padding: 8px 12px;
+                border-radius: 15px;
+                max-width: 80%;
+                word-wrap: break-word;
+            }
+
+            .chat-message.user {
+                background-color: #e0f2fe;
+                align-self: flex-end;
+                margin-left: auto;
+            }
+
+            .chat-message.gemini {
+                background-color: #e6ffe6;
+                align-self: flex-start;
+                margin-right: auto;
+            }
+            .chat-message.error {
+                background-color: #ffe6e6;
+                color: #d8000c;
+            }
+
+            .chat-input {
+                padding: 15px;
+                border-top: 1px solid #eee;
+                display: flex;
+                gap: 10px;
+                background-color: #fff;
+                border-bottom-left-radius: 8px;
+                border-bottom-right-radius: 8px;
+            }
+
+            .chat-input input[type="text"] {
+                flex-grow: 1;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 20px;
+                font-size: 0.95em;
+            }
+
+            .chat-input button {
+                background-color: #007bff;
+                color: white;
+                padding: 10px 18px;
+                border: none;
+                border-radius: 20px;
+                cursor: pointer;
+                font-size: 0.95em;
+                transition: background-color 0.3s ease;
+            }
+
+            .chat-input button:hover {
+                background-color: #0056b3;
+            }
+
+            /* Botón Flotante de Chat */
+            .chat-fab {
+                position: fixed;
+                bottom: 30px;
+                right: 30px;
+                background-color: #007bff;
+                color: white;
+                border-radius: 50%;
+                width: 60px;
+                height: 60px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                font-size: 1.8em;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+                cursor: pointer;
+                z-index: 1001;
+                transition: background-color 0.3s ease, transform 0.2s ease;
+            }
+
+            .chat-fab:hover {
+                background-color: #0056b3;
+                transform: translateY(-3px);
+            }
+
+            /* MODAL para Agregar Nueva Pregunta */
+            .modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.6);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000; /* Asegura que esté por encima de todo */
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.3s ease, visibility 0.3s ease;
+            }
+
+            .modal-overlay.active {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .modal-content {
+                background-color: #fff;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+                width: 90%;
+                max-width: 500px;
+                position: relative;
+                transform: translateY(-20px);
+                transition: transform 0.3s ease;
+            }
+
+            .modal-overlay.active .modal-content {
+                transform: translateY(0);
+            }
+
+            .modal-close-button {
+                position: absolute;
+                top: 15px;
+                right: 15px;
+                background: none;
+                border: none;
+                font-size: 1.5em;
+                color: #888;
+                cursor: pointer;
+                transition: color 0.2s ease;
+            }
+
+            .modal-close-button:hover {
+                color: #333;
+            }
+
+            .modal-content h2 {
+                margin-top: 0;
+                margin-bottom: 25px;
+                color: #333;
+                text-align: center;
+                font-size: 1.8em;
+            }
+
+            .modal-content label {
+                display: block;
+                margin-bottom: 8px;
+                color: #555;
+                font-weight: bold;
+            }
+
+            .modal-content input[type="text"],
+            .modal-content textarea,
+            .modal-content select {
+                width: calc(100% - 20px);
+                padding: 12px 10px;
+                margin-bottom: 20px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                font-size: 1em;
+                box-sizing: border-box;
+            }
+            .modal-content textarea {
+                resize: vertical;
+                min-height: 60px;
+            }
+
+            .modal-content .form-actions {
+                display: flex;
+                justify-content: flex-end; /* Alinea los botones a la derecha */
+                gap: 10px;
+                margin-top: 20px;
+            }
+
+            .modal-content .form-actions button {
+                padding: 10px 20px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 1em;
+            }
+
+            .modal-content .form-actions #modal-save-button {
+                background-color: #28a745; /* Botón de guardar verde */
+                color: white;
+                border: none;
+            }
+            .modal-content .form-actions #modal-save-button:hover {
+                background-color: #218838;
+            }
+
+            .modal-content .form-actions #modal-cancel-button {
+                background-color: #6c757d; /* Botón de cancelar gris */
+                color: white;
+                border: none;
+            }
+            .modal-content .form-actions #modal-cancel-button:hover {
+                background-color: #5a6268;
+            }
+
+            /* Para el campo de opciones en el modal */
+            #modal-opciones-group.hidden {
+                display: none;
+            }
+
+
+            /* Media Queries para pantallas más pequeñas */
+            @media (max-width: 768px) {
+                .container {
+                    flex-direction: column;
+                    margin: 10px auto;
+                    padding: 0 10px;
+                }
+
+                .preguntas-column {
+                    padding: 15px;
+                }
+
+                .preguntas-header {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 15px;
+                }
+                .preguntas-header h1 {
+                    font-size: 1.5em;
+                }
+                .add-button {
+                    width: 100%;
+                    justify-content: center;
+                }
+
+                .chat-column {
+                    width: calc(100% - 20px);
+                    right: 10px;
+                    left: 10px;
+                    top: 10px;
+                    height: calc(100vh - 20px);
+                }
+
+                .modal-content {
+                    width: calc(100% - 40px); /* Ajuste para móviles */
+                    margin: 0 10px;
+                }
+            }
+
+            /* Custom Modal Styles (for alert/confirm replacements) */
+            .custom-modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.6);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1002; /* Higher than other modals */
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.3s ease, visibility 0.3s ease;
+            }
+            .custom-modal-overlay.active {
+                opacity: 1;
+                visibility: visible;
+            }
+            .custom-modal-content {
+                background-color: #fff;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+                width: 90%;
+                max-width: 400px; /* Slightly smaller for alerts */
+                position: relative;
+                transform: translateY(-20px);
+                transition: transform 0.3s ease;
+            }
+            .custom-modal-overlay.active .custom-modal-content {
+                transform: translateY(0);
+            }
+            .custom-modal-content h2 {
+                margin-top: 0;
+                margin-bottom: 15px;
+                color: #333;
+                text-align: center;
+                font-size: 1.5em;
+            }
+            .custom-modal-content p {
+                margin-bottom: 25px;
+                color: #555;
+                text-align: center;
+            }
+            .custom-modal-actions {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+            }
+            .custom-modal-actions button {
+                padding: 8px 15px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 0.9em;
+                transition: background-color 0.3s ease;
+                background-color: #007bff; /* Primary button color */
+                color: white;
+                border: none;
+            }
+            .custom-modal-actions button:hover {
+                background-color: #0056b3;
+            }
+            /* Cancel button for confirms */
+            .custom-modal-actions button#modalCancel {
+                background-color: #6c757d;
+            }
+            .custom-modal-actions button#modalCancel:hover {
+                background-color: #5a6268;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="navbar-container"></div>
+        <div id="navbar-placeholder"></div>
+
+        <div class="container">
+            <div class="preguntas-column">
+                <div class="preguntas-header">
+                    <h1>Gestor de Preguntas</h1>
+                    <button class="add-button" id="addNewQuestion">
+                        <i class="fas fa-plus"></i> Agregar Nueva Pregunta
+                    </button>
+                </div>
+                <div id="questions-list">
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-fab" id="openChatFab">
+            <i class="fas fa-comments"></i>
+        </div>
+
+        <div class="chat-column" id="chatColumn">
+            <div class="chat-header">
+                <span>Chat de Soporte (Gemini AI)</span>
+                <button id="closeChatButton"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="chat-message gemini">
+                    Hola, soy Gemini. ¿En qué puedo ayudarte hoy?
+                </div>
+            </div>
+            <div class="chat-input">
+                <input
+                    type="text"
+                    id="chatInput"
+                    placeholder="Escribe un mensaje..."
+                />
+                <button id="sendChatButton">Enviar</button>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="addQuestionModal">
+            <div class="modal-content">
+                <button class="modal-close-button" id="closeModalButton"><i class="fas fa-times"></i></button>
+                <h2>Agregar Nueva Pregunta</h2>
+                <form id="modalFormPregunta">
+                    <label for="modal-texto">Texto de la Pregunta:</label>
+                    <textarea id="modal-texto" rows="3" required></textarea>
+
+                    <label for="modal-tipo">Tipo de Pregunta:</label>
+                    <select id="modal-tipo" required>
+                        <option value="texto">Texto</option>
+                        <option value="opciones">Opciones</option>
+                        <option value="checkbox">Checkbox</option>
+                    </select>
+
+                    <div id="modal-opciones-group" class="hidden">
+                        <label for="modal-opciones">Opciones (separadas por comas):</label>
+                        <textarea id="modal-opciones" rows="2" placeholder="Ejemplo: Rojo, Azul, Verde"></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" id="modal-cancel-button">Cancelar</button>
+                        <button type="submit" id="modal-save-button">Guardar Pregunta</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            // --- Custom Alert and Confirm Modals ---
+            const showAlert = (message, title = 'Información') => {
+                return new Promise(resolve => {
+                    const modalOverlay = document.createElement('div');
+                    modalOverlay.className = 'custom-modal-overlay';
+                    modalOverlay.innerHTML = `
+                        <div class="custom-modal-content">
+                            <h2>${title}</h2>
+                            <p>${message}</p>
+                            <div class="custom-modal-actions">
+                                <button id="modalOk">OK</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modalOverlay);
+                    setTimeout(() => modalOverlay.classList.add('active'), 10); // Activate transition
+
+                    document.getElementById('modalOk').onclick = () => {
+                        modalOverlay.classList.remove('active');
+                        modalOverlay.addEventListener('transitionend', () => modalOverlay.remove(), { once: true });
+                        resolve();
+                    };
+                });
+            };
+
+            const showConfirm = (message, title = 'Confirmación') => {
+                return new Promise(resolve => {
+                    const modalOverlay = document.createElement('div');
+                    modalOverlay.className = 'custom-modal-overlay';
+                    modalOverlay.innerHTML = `
+                        <div class="custom-modal-content">
+                            <h2>${title}</h2>
+                            <p>${message}</p>
+                            <div class="custom-modal-actions">
+                                <button id="modalCancel">Cancelar</button>
+                                <button id="modalConfirm">Confirmar</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modalOverlay);
+                    setTimeout(() => modalOverlay.classList.add('active'), 10); // Activate transition
+
+                    document.getElementById('modalConfirm').onclick = () => {
+                        modalOverlay.classList.remove('active');
+                        modalOverlay.addEventListener('transitionend', () => modalOverlay.remove(), { once: true });
+                        resolve(true);
+                    };
+                    document.getElementById('modalCancel').onclick = () => {
+                        modalOverlay.classList.remove('active');
+                        modalOverlay.addEventListener('transitionend', () => modalOverlay.remove(), { once: true });
+                        resolve(false);
+                    };
+                });
+            };
+            // --- End Custom Modals ---
+
+
+            // Endpoint de tu backend para Gemini
+            const GEMINI_BACKEND_ENDPOINT = '/api/chat/chat'; 
+
+            document.addEventListener('DOMContentLoaded', async () => {
+                const questionsList = document.getElementById('questions-list');
+                const addNewQuestionButton = document.getElementById('addNewQuestion');
+                
+                // Referencias a los elementos del DOM del chat
+                const chatColumn = document.getElementById('chatColumn');
+                const openChatFab = document.getElementById('openChatFab');
+                const closeChatButton = document.getElementById('closeChatButton');
+                const chatMessages = document.getElementById('chatMessages');
+                const chatInput = document.getElementById('chatInput');
+                const sendChatButton = document.getElementById('sendChatButton');
+
+                // Elementos del Modal de Preguntas
+                const addQuestionModal = document.getElementById('addQuestionModal');
+                const closeModalButton = document.getElementById('closeModalButton');
+                const modalFormPregunta = document.getElementById('modalFormPregunta');
+                const modalTexto = document.getElementById('modal-texto');
+                const modalTipo = document.getElementById('modal-tipo');
+                const modalOpciones = document.getElementById('modal-opciones');
+                const modalOpcionesGroup = document.getElementById('modal-opciones-group');
+                const modalCancelButton = document.getElementById('modal-cancel-button');
+
+
+                // --- Funciones para el Gestor de Preguntas ---
+
+                // Función para renderizar una sola tarjeta de pregunta
+                const renderQuestionCard = (pregunta) => {
+                    let optionsHtml = '';
+                    if (pregunta.tipo === 'opciones' && pregunta.opciones) {
+                        const optionsArray = pregunta.opciones.split(',').map(opt => opt.trim());
+                        optionsHtml = `<ul class="options-list">`;
+                        optionsArray.forEach((option) => {
+                            optionsHtml += `<li><input type="radio" name="pregunta_${pregunta.id}" disabled /> ${option}</li>`;
+                        });
+                        optionsHtml += `</ul>`;
+                    } else if (pregunta.tipo === 'checkbox' && pregunta.opciones) {
+                        const optionsArray = pregunta.opciones.split(',').map(opt => opt.trim());
+                        optionsHtml = `<ul class="checkbox-list">`;
+                        optionsArray.forEach((option) => {
+                            optionsHtml += `<li><input type="checkbox" name="pregunta_${pregunta.id}" disabled /> ${option}</li>`;
+                        });
+                        optionsHtml += `</ul>`;
+                    } else if (pregunta.tipo === 'texto') {
+                        optionsHtml = `<div class="text-response">Tu respuesta...</div>`;
+                    }
+
+                    return `
+                        <div class="pregunta-card" data-id="${pregunta.id}">
+                            <h3>${pregunta.texto}</h3>
+                            ${optionsHtml}
+                            <div class="pregunta-actions">
+                                <button class="edit-button">Editar</button>
+                                <button class="delete-button">Eliminar</button>
+                            </div>
+                        </div>
+                    `;
+                };
+
+                // Función para cargar y mostrar todas las preguntas
+                const loadQuestions = async () => {
+                    questionsList.innerHTML = ''; // Limpiar la lista actual
+                    try {
+                        const res = await fetch('/api/preguntas');
+                        if (!res.ok) throw new Error('Error al cargar las preguntas.');
+                        const preguntas = await res.json();
+
+                        if (Array.isArray(preguntas) && preguntas.length === 0) {
+                            questionsList.innerHTML = '<p>No hay preguntas aún. ¡Agrega una nueva!</p>';
+                            return;
+                        } else if (!Array.isArray(preguntas)) {
+                                    throw new Error('Formato de datos de preguntas inesperado.');
+                        }
+
+                        preguntas.forEach((pregunta) => {
+                            questionsList.insertAdjacentHTML('beforeend', renderQuestionCard(pregunta));
+                        });
+                        attachQuestionEventListeners(); // Re-attach event listeners after re-rendering
+                    } catch (error) {
+                        console.error('Error al cargar las preguntas:', error);
+                        showAlert('No se pudieron cargar las preguntas. Inténtalo de nuevo más tarde.');
+                    }
+                };
+
+                // Función para adjuntar listeners a los botones de editar y eliminar
+                const attachQuestionEventListeners = () => {
+                    document.querySelectorAll('.pregunta-card .edit-button').forEach(button => {
+                        button.onclick = (e) => {
+                            const card = e.target.closest('.pregunta-card');
+                            const id = card.dataset.id;
+                            editQuestion(id);
+                        };
+                    });
+                    document.querySelectorAll('.pregunta-card .delete-button').forEach(button => {
+                        button.onclick = (e) => {
+                            const card = e.target.closest('.pregunta-card');
+                            const id = card.dataset.id;
+                            deleteQuestion(id);
+                        };
+                    });
+                };
+
+                // Función para abrir el modal en modo agregar/editar
+                let currentQuestionId = null; // Para saber si estamos editando o agregando
+                const openQuestionModal = (pregunta = null) => {
+                    currentQuestionId = pregunta ? pregunta.id : null;
+                    modalFormPregunta.reset(); // Limpiar el formulario
+
+                    if (pregunta) {
+                        document.querySelector('#addQuestionModal h2').textContent = 'Editar Pregunta';
+                        modalTexto.value = pregunta.texto;
+                        modalTipo.value = pregunta.tipo;
+                        if (pregunta.opciones) {
+                            modalOpciones.value = pregunta.opciones;
+                        }
+                    } else {
+                        document.querySelector('#addQuestionModal h2').textContent = 'Agregar Nueva Pregunta';
+                    }
+                    toggleOptionsGroup(); // Asegurar que el campo de opciones se muestre/oculte correctamente
+                    addQuestionModal.classList.add('active');
+                };
+
+                // Función para cerrar el modal
+                const closeQuestionModal = () => {
+                    addQuestionModal.classList.remove('active');
+                };
+
+                // Función para alternar la visibilidad del campo de opciones en el modal
+                const toggleOptionsGroup = () => {
+                    if (modalTipo.value === 'opciones' || modalTipo.value === 'checkbox') {
+                        modalOpcionesGroup.classList.remove('hidden');
+                        modalOpciones.setAttribute('required', 'required'); // Hacerlo requerido cuando visible
+                    } else {
+                        modalOpcionesGroup.classList.add('hidden');
+                        modalOpciones.removeAttribute('required'); // No requerido cuando oculto
+                    }
+                };
+
+                // Evento para abrir el modal al hacer clic en "Agregar Nueva Pregunta"
+                addNewQuestionButton.addEventListener('click', () => openQuestionModal());
+
+                // Eventos para cerrar el modal
+                closeModalButton.addEventListener('click', closeQuestionModal);
+                modalCancelButton.addEventListener('click', closeQuestionModal);
+                addQuestionModal.addEventListener('click', (e) => {
+                    if (e.target === addQuestionModal) { // Solo cierra si se hace clic en el overlay
+                        closeQuestionModal();
+                    }
+                });
+
+                // Evento para el cambio en el tipo de pregunta en el modal
+                modalTipo.addEventListener('change', toggleOptionsGroup);
+
+                // Manejar el envío del formulario del modal (agregar/editar pregunta)
+                modalFormPregunta.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+
+                    const texto = modalTexto.value;
+                    const tipo = modalTipo.value;
+                    const opciones = (tipo === 'opciones' || tipo === 'checkbox') ? modalOpciones.value : null;
+
+                    if ((tipo === 'opciones' || tipo === 'checkbox') && !opciones) {
+                        showAlert('Las opciones son requeridas para preguntas de tipo "Opciones" o "Checkbox".');
+                        return;
+                    }
+
+                    const preguntaData = { texto, tipo, opciones };
+
+                    try {
+                        let res;
+                        if (currentQuestionId) {
+                            // Editar pregunta existente
+                            res = await fetch(`/api/preguntas/${currentQuestionId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(preguntaData)
+                            });
+                            if (!res.ok) throw new Error('Error al actualizar la pregunta.');
+                            showAlert('Pregunta actualizada correctamente.');
+                        } else {
+                            // Agregar nueva pregunta
+                            res = await fetch('/api/preguntas', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(preguntaData)
+                            });
+                            if (!res.ok) throw new Error('Error al agregar la pregunta.');
+                            showAlert('Pregunta agregada correctamente.');
+                        }
+                        closeQuestionModal();
+                        loadQuestions(); // Recargar la lista de preguntas
+                    } catch (error) {
+                        console.error('Error al guardar la pregunta:', error);
+                        showAlert('Ocurrió un error al guardar la pregunta. Inténtalo de nuevo.');
+                    }
+                });
+
+                // Función para editar una pregunta (obtener datos y abrir modal)
+                const editQuestion = async (id) => {
+                    try {
+                        const res = await fetch(`/api/preguntas/${id}`);
+                        if (!res.ok) throw new Error('Error al obtener la pregunta para editar.');
+                        const pregunta = await res.json();
+                        openQuestionModal(pregunta);
+                    } catch (error) {
+                        console.error('Error al cargar la pregunta para editar:', error);
+                        showAlert('No se pudo cargar la pregunta para editar.');
+                    }
+                };
+
+                // Función para eliminar una pregunta
+                const deleteQuestion = async (id) => {
+                    const confirmed = await showConfirm('¿Estás seguro de que quieres eliminar esta pregunta? Esta acción es irreversible.');
+                    if (!confirmed) {
+                        return;
+                    }
+                    try {
+                        const res = await fetch(`/api/preguntas/${id}`, { method: 'DELETE' });
+                        if (!res.ok) throw new Error('Error al eliminar la pregunta.');
+                        showAlert('Pregunta eliminada correctamente.');
+                        loadQuestions(); // Recargar la lista de preguntas
+                    } catch (error) {
+                        console.error('Error al eliminar la pregunta:', error);
+                        showAlert('Ocurrió un error al eliminar la pregunta. Inténtalo de nuevo.');
+                    }
+                };
+
+                // --- Funciones para el Chat de Soporte ---
+
+                // Función para agregar un mensaje al chat
+                const addMessageToChat = (message, sender) => {
+                    const messageElement = document.createElement('div');
+                    messageElement.classList.add('chat-message', sender);
+                    messageElement.textContent = message;
+                    chatMessages.appendChild(messageElement);
+                    chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll al final
+                };
+
+                // Función para enviar mensaje a Gemini
+                const sendMessageToGemini = async (message) => {
+                    addMessageToChat(message, 'user');
+                    chatInput.value = ''; // Limpiar input
+
+                    try {
+                        const response = await fetch(GEMINI_BACKEND_ENDPOINT, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ message }),
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`Error del servidor: ${response.statusText}`);
+                        }
+
+                        const data = await response.json();
+                        addMessageToChat(data.response, 'gemini');
+                    } catch (error) {
+                        console.error('Error al comunicarse con Gemini:', error);
+                        addMessageToChat('Lo siento, no pude comunicarme con la IA en este momento. Por favor, intenta de nuevo más tarde.', 'error');
+                    }
+                };
+
+                // Event listeners para el chat
+                openChatFab.addEventListener('click', () => {
+                    chatColumn.classList.add('active');
+                });
+
+                closeChatButton.addEventListener('click', () => {
+                    chatColumn.classList.remove('active');
+                });
+
+                sendChatButton.addEventListener('click', () => {
+                    const message = chatInput.value.trim();
+                    if (message) {
+                        sendMessageToGemini(message);
+                    }
+                });
+
+                chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        const message = chatInput.value.trim();
+                        if (message) {
+                            sendMessageToGemini(message);
+                        }
+                    }
+                });
+
+                // --- Inicialización ---
+                loadQuestions(); // Cargar preguntas al inicio
+
+                // Script para cargar el navbar dinámicamente y ajustar el padding
+                try {
+                    // Cargar navbar.html
+                    const navbarResponse = await fetch('/navbar.html');
+                    if (!navbarResponse.ok) throw new Error('Error cargando navbar.html: ' + navbarResponse.statusText);
+                    const navbarHtml = await navbarResponse.text();
+                    document.getElementById('navbar-container').innerHTML = navbarHtml;
+                    console.log('navbar.html inyectado en el DOM.');
+
+                    // Obtener info de usuario (rol)
+                    const userResp = await fetch('/api/userinfo');
+                    if (!userResp.ok) throw new Error('Error al obtener info usuario: ' + userResp.statusText);
+                    const user = await userResp.json();
+
+                    // Cargar navbar.js para funciones adaptNavbarForRole y adjustBodyPadding
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = '/navbar.js';
+                        script.onload = resolve;
+                        script.onerror = () => reject(new Error('Error cargando navbar.js'));
+                        document.body.appendChild(script);
+                    });
+                    console.log('navbar.js cargado.');
+
+                    // Adaptar navbar según rol del usuario
+                    if (typeof adaptNavbarForRole === 'function') {
+                        adaptNavbarForRole(user.role);
+                    } else {
+                        console.warn('adaptNavbarForRole no está definido en navbar.js.');
+                    }
+
+                    // Ajustar padding del body para que no tape el navbar
+                    if (typeof adjustBodyPadding === 'function') {
+                        adjustBodyPadding();
+                        window.addEventListener('resize', adjustBodyPadding); // Re-adjust on resize
+                    } else {
+                        console.warn('adjustBodyPadding no está definido en navbar.js.');
+                    }
+
+                } catch (err) {
+                    console.error('Error cargando el navbar o la info de usuario:', err);
+                    // Optionally, display a fallback message or simplified header if navbar fails to load
+                }
+            });
+        </script>
+    </body>
+    </html>

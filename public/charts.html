@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gráfico y Respuestas por Categoría</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <link rel="stylesheet" href="/css/navbar.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Estilos generales */
+        body {
+            background-color: #f3f4f6; /* bg-gray-100 */
+            display: flex;
+            flex-direction: column;
+            /* REMOVED: align-items: center; - This was causing horizontal centering issues with the main container */
+            justify-content: flex-start; /* Alinear contenido desde arriba */
+            min-height: 100vh;
+            padding: 0; /* Remover padding ya que el navbar lo manejará */
+            font-family: 'Inter', sans-serif; /* Usar Inter para consistencia */
+            font-size: 11px; /* Default font size for the body - reduced from default browser size (typically 16px) */
+        }
+
+        /* REMOVED: #navbar-placeholder styles - This div is being removed from HTML */
+
+        .main-container {
+            margin-left: auto; /* mx-auto */
+            margin-right: auto; /* mx-auto */
+            padding: 1rem; /* p-4 */
+            max-width: 1280px; /* Para que coincida con el diseño de la página del mapa si se desea */
+            width: 100%;
+            flex-grow: 1; /* Permitir que el contenido principal ocupe el espacio disponible */
+            padding-top: 1rem; /* Asegurar un padding superior si el body padding es ajustado por JS */
+        }
+
+        @media (min-width: 768px) { /* md:p-8 */
+            .main-container {
+                padding: 2rem;
+            }
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr; /* grid-cols-1 */
+            gap: 2rem; /* gap-8 */
+        }
+
+        @media (min-width: 768px) { /* md:grid-cols-2 */
+            .grid-layout {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Estilos de las tarjetas (Chart y Respuestas) */
+        .card {
+            background-color: #ffffff; /* bg-white */
+            padding: 1.5rem; /* p-6 */
+            border-radius: 0.5rem; /* rounded-lg */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+            width: 100%;
+            max-width: 42rem; /* max-w-2xl, ajustado para que se vea mejor en el grid */
+            margin-left: auto; /* mx-auto */
+            margin-right: auto; /* mx-auto */
+        }
+
+        .card-title {
+            font-size: 1.5rem; /* text-2xl */
+            font-weight: 700; /* font-bold */
+            margin-bottom: 1.5rem; /* mb-6 */
+            color: #1f2937; /* text-gray-800 */
+            text-align: center; /* text-center */
+        }
+
+        /* Estilos del gráfico */
+        .chart-container {
+            position: relative;
+            height: 24rem; /* h-96 */
+        }
+
+        .chart-message {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280; /* text-gray-500 */
+            background-color: rgba(255, 255, 255, 0.9); /* bg-white bg-opacity-90 */
+        }
+
+        .close-button-container {
+            margin-top: 1.5rem; /* mt-6 */
+            text-align: center; /* text-center */
+        }
+
+        .close-button {
+            background-color: #2563eb; /* bg-blue-600 */
+            color: #ffffff; /* text-white */
+            padding: 0.75rem; /* p-3 */
+            border-radius: 0.375rem; /* rounded-md */
+            transition-property: all;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 150ms;
+        }
+
+        .close-button:hover {
+            background-color: #1d4ed8; /* hover:bg-blue-700 */
+        }
+
+        .close-button:focus {
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); /* focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 */
+        }
+
+        /* Estilos de Respuestas Registradas */
+        .responses-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem; /* mb-4 */
+        }
+
+        .responses-title {
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 700; /* font-bold */
+            color: #1f2937; /* text-gray-800 */
+        }
+
+        .reset-button {
+            background-color: #ef4444; /* bg-red-500 */
+            color: #ffffff; /* text-white */
+            padding: 0.25rem 0.75rem; /* px-3 py-1 */
+            border-radius: 0.375rem; /* rounded-md */
+            font-size: 0.875rem; /* text-sm */
+            transition-property: background-color;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 150ms;
+        }
+
+        .reset-button:hover {
+            background-color: #dc2626; /* hover:bg-red-600 */
+        }
+
+        .tabs-nav-container {
+            border-bottom: 1px solid #e5e7eb; /* border-b border-gray-200 */
+        }
+
+        .tabs-nav {
+            display: flex;
+            margin-bottom: -1px; /* -mb-px */
+            gap: 1rem; /* space-x-4 */
+        }
+
+        .tab-button {
+            padding-top: 0.5rem; /* py-2 */
+            padding-bottom: 0.5rem; /* py-2 */
+            padding-left: 1rem; /* px-4 */
+            padding-right: 1rem; /* px-4 */
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 500; /* font-medium */
+            color: #6b7280; /* text-gray-500 */
+            transition-property: color;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 150ms;
+        }
+
+        .tab-button:hover {
+            color: #374151; /* hover:text-gray-700 */
+        }
+
+        .active-tab {
+            border-bottom: 2px solid #3b82f6;
+            color: #3b82f6;
+        }
+
+        .tab-contents-container {
+            margin-top: 1rem; /* mt-4 */
+            display: flex;
+            flex-direction: column;
+            gap: 1rem; /* space-y-4 */
+        }
+
+        .tab-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem; /* space-y-3 */
+        }
+
+        .tab-content.hidden {
+            display: none;
+        }
+
+        .response-item {
+            background-color: #f9fafb; /* bg-gray-50 */
+            padding: 0.75rem; /* p-3 */
+            border-radius: 0.375rem; /* rounded-md */
+            border-width: 1px;
+            border-color: #e5e7eb; /* border-gray-200 */
+        }
+
+        .response-paragraph {
+            color: #1f2937; /* text-gray-800 */
+            font-weight: 500; /* font-medium */
+        }
+
+        .response-keywords {
+            color: #4b5563; /* text-gray-600 */
+            font-size: 0.75rem; /* text-xs */
+            margin-top: 0.25rem; /* mt-1 */
+        }
+
+        .response-keywords .font-semibold {
+            font-weight: 600; /* font-semibold */
+        }
+
+        .response-date {
+            color: #6b7280; /* text-gray-500 */
+            font-size: 0.75rem; /* text-xs */
+        }
+
+        /* Mensajes dentro de charts.html para reset */
+        .message-div-charts {
+            margin-top: 1.5rem; /* mt-6 */
+            padding: 0.75rem; /* p-3 */
+            border-radius: 0.375rem; /* rounded-md */
+            font-size: 0.875rem; /* text-sm */
+            border-width: 1px;
+            display: none; /* Initially hidden */
+        }
+
+        /* Clases de tipo de mensaje para charts.html */
+        .message-charts-success {
+            background-color: #dcfce7; /* bg-green-100 */
+            color: #15803d; /* text-green-800 */
+            border-color: #4ade80; /* border-green-500 */
+        }
+
+        .message-charts-error {
+            background-color: #fee2e2; /* bg-red-100 */
+            color: #991b1b; /* text-red-800 */
+            border-color: #ef4444; /* border-red-500 */
+        }
+
+        .message-charts-reset {
+            background-color: #fff7ed; /* bg-orange-100 */
+            color: #c2410c; /* text-orange-800 */
+            border-color: #f97316; /* border-orange-500 */
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-container"></div>
+    <div class="main-container">
+        <div class="grid-layout">
+            <div class="card">
+                <h1 class="card-title">Distribución de Comentarios por Categoría</h1>
+                <div class="chart-container">
+                    <canvas id="keywordPieChart"></canvas>
+                    <p id="chartMessage" class="chart-message hidden">Cargando gráfico...</p>
+                </div>
+                <div class="close-button-container">
+                    <button onclick="window.close()" class="close-button">
+                        Cerrar Gráfico
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="responses-header">
+                    <h2 class="responses-title">Respuestas Registradas</h2>
+                    <button id="resetResponsesBtn" class="reset-button">
+                        Resetear
+                    </button>
+                </div>
+                <div class="tabs-nav-container">
+                    <nav class="tabs-nav">
+                        <button class="tab-button active-tab" data-category="quejas">Quejas</button>
+                        <button class="tab-button" data-category="recomendaciones">Recomendaciones</button>
+                        <button class="tab-button" data-category="satisfaccion">Satisfacción</button>
+                    </nav>
+                </div>
+
+                <div id="tab-contents" class="tab-contents-container">
+                    <div id="quejas-content" class="tab-content">
+                        <div id="quejas-list" class="space-y-3"></div>
+                    </div>
+                    <div id="recomendaciones-content" class="tab-content hidden">
+                        <div id="recomendaciones-list" class="space-y-3"></div>
+                    </div>
+                    <div id="satisfaccion-content" class="tab-content hidden">
+                        <div id="satisfaccion-list" class="space-y-3"></div>
+                    </div>
+                </div>
+                <div id="messageCharts" class="message-div-charts"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        // --- Navbar-related JavaScript from index.html ---
+        try {
+            // Load navbar.html
+            const response = await fetch('/navbar.html');
+            if (!response.ok) throw new Error('Error cargando navbar.html: ' + response.statusText);
+            const navbarHtml = await response.text();
+            document.getElementById('navbar-container').innerHTML = navbarHtml;
+            console.log('navbar.html inyectado en el DOM.');
+
+            // Get user info (role) - This assumes /api/userinfo exists and returns a 'role'
+            const userResp = await fetch('/api/userinfo');
+            if (!userResp.ok) throw new Error('Error al obtener info usuario: ' + userResp.statusText);
+            const user = await userResp.json();
+
+            // Load navbar.js for adaptNavbarForRole and adjustBodyPadding functions
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = '/navbar.js';
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('Error cargando navbar.js'));
+                document.body.appendChild(script);
+            });
+            console.log('navbar.js cargado.');
+
+            // Adapt navbar based on user role
+            if (typeof adaptNavbarForRole === 'function') {
+                adaptNavbarForRole(user.role);
+            } else {
+                console.warn('adaptNavbarForRole no está definido. Asegúrate de que navbar.js lo exporte o sea global.');
+            }
+
+            // Adjust body padding so navbar doesn't cover content
+            // We also add a resize listener here for responsiveness
+            if (typeof adjustBodyPadding === 'function') {
+                adjustBodyPadding();
+                // The resize listener below is for this specific HTML file.
+                // The one in navbar.js also handles it, but this one will still work.
+                window.addEventListener('resize', () => {
+                    adjustBodyPadding();
+                    // Also re-apply mobile menu visibility logic on resize if needed
+                    const navbarLinks = document.getElementById('navbar-links');
+                    if (navbarLinks) {
+                        if (window.innerWidth >= 768) { // If desktop view
+                            navbarLinks.classList.remove('hidden');
+                            navbarLinks.classList.add('flex');
+                        } else { // If mobile view, ensure it starts hidden
+                            navbarLinks.classList.add('hidden');
+                            navbarLinks.classList.remove('flex');
+                        }
+                    }
+                });
+            } else {
+                console.warn('adjustBodyPadding no está definido. Asegúrate de que navbar.js lo exporte o sea global.');
+            }
+
+        } catch (err) {
+            console.error('Error cargando el navbar o la info de usuario:', err);
+            // Optionally show a user-friendly message here
+            alert('No se pudo cargar la interfaz principal. Por favor, recarga la página.');
+        }
+
+        // --- Chart-related JavaScript (existing code) ---
+        const ctx = document.getElementById('keywordPieChart');
+        const chartMessage = document.getElementById('chartMessage');
+        let categoryChart = null;
+
+        async function fetchChartData() {
+            chartMessage.textContent = 'Cargando datos del gráfico...';
+            chartMessage.classList.remove('hidden');
+            try {
+                const res = await fetch('/api/keywords-count');
+                const data = await res.json();
+                if (data.success && data.data.length > 0) {
+                    chartMessage.classList.add('hidden');
+                    return data.data;
+                } else {
+                    chartMessage.textContent = 'No hay comentarios registrados para mostrar en el gráfico.';
+                    return [];
+                }
+            } catch (error) {
+                chartMessage.textContent = 'Error al cargar los datos del gráfico. Intenta de nuevo más tarde.';
+                return [];
+            }
+        }
+
+        function createPieChart(chartData) {
+            if (categoryChart) {
+                categoryChart.destroy();
+            }
+            const labels = chartData.map(item => item.label);
+            const values = chartData.map(item => item.value);
+            const backgroundColors = [
+                'rgba(255, 99, 132, 0.7)',
+                'rgba(54, 162, 235, 0.7)',
+                'rgba(75, 192, 192, 0.7)',
+                'rgba(255, 206, 86, 0.7)',
+                'rgba(153, 102, 255, 0.7)',
+            ];
+
+            categoryChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '# de Comentarios',
+                        data: values,
+                        backgroundColor: backgroundColors.slice(0, values.length),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: {
+                            display: true,
+                            text: 'Distribución de Comentarios por Categoría'
+                        }
+                    }
+                }
+            });
+        }
+
+        const chartInitialData = await fetchChartData();
+        if (chartInitialData.length > 0) {
+            createPieChart(chartInitialData);
+        }
+
+        // --- Copied "Respuestas Registradas" JavaScript from index.html ---
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const resetButton = document.getElementById('resetResponsesBtn');
+        const messageDivCharts = document.getElementById('messageCharts');
+        let messageTimeoutIdCharts;
+
+        function showMessageCharts(msg, typeClass, duration = 5000) {
+            if (messageTimeoutIdCharts) clearTimeout(messageTimeoutIdCharts);
+            messageDivCharts.textContent = msg;
+            messageDivCharts.className = `message-div-charts ${typeClass}`;
+            messageDivCharts.style.display = 'block';
+            if (duration > 0) {
+                messageTimeoutIdCharts = setTimeout(() => {
+                    messageDivCharts.style.display = 'none';
+                }, duration);
+            }
+        }
+
+        // --- Tabs Functionality ---
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => btn.classList.remove('active-tab'));
+                tabContents.forEach(content => content.classList.add('hidden'));
+                button.classList.add('active-tab');
+                document.getElementById(button.dataset.category + '-content').classList.remove('hidden');
+            });
+        });
+
+        // --- Response Loading and Display ---
+        async function fetchAndDisplayResponses(category) {
+            const listContainer = document.getElementById(`${category}-list`);
+            listContainer.innerHTML = '<p class="text-gray-500">Cargando...</p>';
+            try {
+                const res = await fetch(`/api/responses/${category}`);
+                const data = await res.json();
+                if (data.success && data.data.length > 0) {
+                    listContainer.innerHTML = '';
+                    data.data.forEach(item => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'response-item';
+                        itemDiv.innerHTML = `
+                            <p class="response-paragraph">${item.parrafo}</p>
+                            <p class="response-keywords">
+                                Keywords: <span class="font-semibold">${item.palabras_clave_detectadas || 'None'}</span>
+                            </p>
+                            <p class="response-date">Fecha: ${new Date(item.fecha_deteccion).toLocaleString()}</p>
+                        `;
+                        listContainer.appendChild(itemDiv);
+                    });
+                } else {
+                    listContainer.innerHTML = `<p class="text-gray-500">No hay ${category} registradas todavía.</p>`;
+                }
+            } catch (error) {
+                listContainer.innerHTML = `<p class="text-red-500">Error al cargar ${category}. Por favor, inténtalo de nuevo más tarde.</p>`;
+            }
+        }
+
+        async function loadResponses() {
+            await fetchAndDisplayResponses('quejas');
+            await fetchAndDisplayResponses('recomendaciones');
+            await fetchAndDisplayResponses('satisfaccion');
+            // After loading responses, also refresh the chart
+            const updatedChartData = await fetchChartData();
+            if (updatedChartData.length > 0) {
+                createPieChart(updatedChartData);
+            }
+        }
+
+        // --- Reset Button Functionality ---
+        if (resetButton) {
+            resetButton.addEventListener('click', async () => {
+                if (!confirm('¿Estás seguro de que quieres eliminar TODAS las respuestas? Esta acción es irreversible.')) return;
+                showMessageCharts('Reiniciando respuestas...', 'message-charts-reset', 0);
+                try {
+                    const res = await fetch('/api/reset-responses', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        showMessageCharts('¡Todas las respuestas han sido eliminadas!', 'message-charts-success', 5000);
+                        loadResponses(); // Reload both responses and chart
+                    } else {
+                        showMessageCharts(`Error al reiniciar respuestas: ${data.message || 'Error desconocido.'}`, 'message-charts-error', 8000);
+                    }
+                } catch (error) {
+                    showMessageCharts('Ocurrió un error de red al intentar reiniciar las respuestas.', 'message-charts-error', 8000);
+                }
+            });
+        }
+
+        // Initial load of responses and set active tab
+        loadResponses();
+        if (tabButtons.length > 0) {
+            tabButtons[0].click();
+        }
+    });
+</script>
+</body>
+</html>

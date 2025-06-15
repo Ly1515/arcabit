@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mapa de Ubicaciones en México</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="/css/navbar.css"> 
+    
+    <style>
+        /* Estilos generales del cuerpo */
+        html, body {
+            height: 100%;
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f0f2f5;
+            min-height: 100vh;
+            color: #333;
+            font-size: 14px; /* Default font size for the body - reduced from default browser size (typically 16px) */
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Placeholder para el navbar, su altura se ajustará dinámicamente con JS */
+        #navbar-placeholder {
+            width: 100%;
+            flex-shrink: 0;
+            /* This div will get its height dynamically from navbar.js */
+        }
+
+        /* El mapa ocupará todo el espacio restante disponible */
+        #map {
+            flex-grow: 1; 
+            min-height: 0; /* Allows flex-grow to work properly */
+            width: 100%;
+        }
+        
+        /* Estilos para el popup de Leaflet */
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            padding: 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
+        }
+        .leaflet-popup-content {
+            margin: 0;
+            padding: 8px; /* Slightly reduced padding */
+        }
+        .leaflet-popup-content h3 {
+            margin-top: 0;
+            margin-bottom: 4px; /* Slightly reduced margin */
+            font-size: 1.0em; /* Reduced from 1.2em */
+            color: #2c3e50; 
+            font-weight: 600; 
+        }
+        .leaflet-popup-content p {
+            margin: 0 0 4px 0; /* Slightly reduced margin */
+            font-size: 0.85em; /* Reduced from 0.95em */
+            color: #555; 
+        }
+        .leaflet-popup-content strong {
+            color: #000;
+            font-weight: 700; 
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-container"></div>
+    <div id="navbar-placeholder"></div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Este script carga el navbar dinámicamente, obtiene el rol y ajusta la vista
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Cargar navbar.html
+                const response = await fetch('/navbar.html');
+                if (!response.ok) throw new Error('Error cargando navbar.html: ' + response.statusText);
+                const navbarHtml = await response.text();
+                document.getElementById('navbar-container').innerHTML = navbarHtml;
+                console.log('navbar.html inyectado en el DOM.');
+
+                // Obtener info de usuario (rol)
+                const userResp = await fetch('/api/userinfo');
+                if (!userResp.ok) throw new Error('Error al obtener info usuario: ' + userResp.statusText);
+                const user = await userResp.json();
+
+                // Cargar navbar.js para funciones adaptNavbarForRole y adjustBodyPadding
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = '/navbar.js';
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error('Error cargando navbar.js'));
+                    document.body.appendChild(script);
+                });
+                console.log('navbar.js cargado.');
+
+                // Adaptar navbar según rol del usuario
+                if (typeof adaptNavbarForRole === 'function') {
+                    adaptNavbarForRole(user.role);
+                } else {
+                    console.warn('adaptNavbarForRole no está definido. Asegúrate de que navbar.js se carga correctamente.');
+                }
+
+                // Ajustar padding del body para que no tape el navbar
+                if (typeof adjustBodyPadding === 'function') {
+                    adjustBodyPadding();
+                    // Add event listener to re-adjust on window resize
+                    window.addEventListener('resize', adjustBodyPadding); 
+                } else {
+                    console.warn('adjustBodyPadding no está definido. Asegúrate de que navbar.js se carga correctamente.');
+                }
+
+            } catch (err) {
+                console.error('Error cargando el navbar o la info de usuario:', err);
+                // Optionally show a user-friendly error message on the page
+                alert('No se pudo cargar la interfaz principal. Por favor, recarga la página.');
+            }
+        });
+    </script>
+
+    <script>
+        // Inicializar el mapa de Leaflet
+        window.map = L.map('map').setView([23.6345, -102.5528], 5); // Centro de México y zoom inicial
+
+        // Añadir una capa de teselas de OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(window.map);
+
+        // Realizar la solicitud al servidor para obtener las ubicaciones
+        fetch('/api/ubicaciones')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error al cargar las ubicaciones: ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("Datos recibidos del servidor:", data);
+            if (data.length > 0) {
+                console.log("Primer objeto de ubicación:", data[0]);
+            }
+
+            data.forEach(ubicacion => {
+                // Ensure latitud and longitud are numbers
+                const lat = parseFloat(ubicacion.latitud);
+                const lon = parseFloat(ubicacion.longitud);
+
+                if (isNaN(lat) || isNaN(lon)) {
+                    console.warn(`Skipping location due to invalid coordinates: ${ubicacion.nombre}, Lat: ${ubicacion.latitud}, Lon: ${ubicacion.longitud}`);
+                    return; // Skip this iteration if coordinates are invalid
+                }
+
+                const popupContent = `
+                    <div class="p-1"> <h3 class="font-semibold text-base mb-0.5">${ubicacion.nombre || 'Ubicación sin nombre'}</h3> <p class="text-xs text-gray-700 mb-0.5">NPS: <strong class="text-gray-900">${ubicacion.nps || 'Sin dato de NPS'}</strong></p> <p class="text-xs text-gray-600">ID: ${ubicacion.id || 'N/A'}</p> </div>
+                `;
+
+                L.marker([lat, lon])
+                    .bindPopup(popupContent, {
+                        closeButton: true,
+                        minWidth: 120, // Reduced minWidth
+                        maxWidth: 250 // Reduced maxWidth
+                    }) 
+                    .addTo(window.map);
+            });
+        })
+        .catch(error => {
+            console.error('Error al obtener o procesar las ubicaciones:', error);
+            alert('No se pudieron cargar los datos del mapa. Inténtalo de nuevo más tarde.');
+        });
+    </script>
+</body>
+</html>

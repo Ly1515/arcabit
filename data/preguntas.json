@@ -1,0 +1,124 @@
+[
+  {
+    "id": "q1",
+    "texto": "Nombre de la tienda",
+    "tipo": "texto"
+  },
+  {
+    "id": "q2",
+    "texto": "Ubicacion",
+    "tipo": "texto"
+  },
+  {
+    "id": "q3",
+    "texto": "Colaborador",
+    "tipo": "texto"
+  },
+  {
+    "id": "q4",
+    "texto": "ID Colaborador",
+    "tipo": "texto"
+  },
+  {
+    "id": "q5",
+    "texto": "¿Cómo calificarías la calidad de los productos de Arca Continental?",
+    "tipo": "opciones",
+    "opciones": "Excelente, Buena, Regular, Mala"
+  },
+  {
+    "id": "q6",
+    "texto": "¿Qué tan satisfecho(a) estás con la puntualidad en las entregas?",
+    "tipo": "opciones",
+    "opciones": "1, 2, 3, 4, 5"
+  },
+  {
+    "id": "q7",
+    "texto": "¿Consideras que el catálogo de productos cubre tus necesidades de negocio?",
+    "tipo": "opciones",
+    "opciones": "Sí, No, Parcialmente"
+  },
+  {
+    "id": "q8",
+    "texto": "Menciona alguna mejora que te gustaría ver en el servicio de Arca Continental.",
+    "tipo": "texto"
+  },
+  {
+    "id": "q9",
+    "texto": "¿Qué tan probable es que recomiendes a Arca Continental a otros clientes o negocios?",
+    "tipo": "opciones",
+    "opciones": "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10"
+  },
+  {
+    "id": "q10",
+    "texto": "¿Has usado la app Tuali para realizar pedidos o consultar información?",
+    "tipo": "opciones",
+    "opciones": "Sí, No"
+  },
+  {
+    "id": "q11",
+    "texto": "Si has usado Tuali, ¿cómo calificarías su facilidad de uso?",
+    "tipo": "opciones",
+    "opciones": "1, 2, 3, 4, 5"
+  },
+  {
+    "id": "q12",
+    "texto": "¿Podrías explicarnos por qué le diste esa calificación a la facilidad de uso de Tuali?",
+    "tipo": "texto"
+  },
+  {
+    "id": "q13",
+    "texto": "¿Cuál es la función que más utilizas dentro de la app Tuali?",
+    "tipo": "opciones",
+    "opciones": "Realizar pedidos, Consultar precios, Consultar promociones, Revisar historial, Otra"
+  },
+  {
+    "id": "q14",
+    "texto": "¿Te gustaría recibir notificaciones personalizadas de ofertas o promociones en Tuali?",
+    "tipo": "opciones",
+    "opciones": "Sí, No, Tal vez"
+  },
+  {
+    "id": "q15",
+    "texto": "¿Has experimentado algún problema técnico al utilizar la app Tuali?",
+    "tipo": "opciones",
+    "opciones": "Sí, No"
+  },
+  {
+    "id": "q16",
+    "texto": "En caso de haber tenido problemas con Tuali, describe brevemente qué ocurrió.",
+    "tipo": "texto"
+  },
+  {
+    "id": "q17",
+    "texto": "¿Cómo calificarías la atención al cliente de Arca Continental en caso de dudas o inconvenientes?",
+    "tipo": "opciones",
+    "opciones": "1, 2, 3, 4, 5"
+  },
+  {
+    "id": "q18",
+    "texto": "¿Te sientes seguro(a) realizando pagos o pedidos a través de Tuali?",
+    "tipo": "opciones",
+    "opciones": "Sí, No, A veces"
+  },
+  {
+    "id": "q19",
+    "texto": "¿Qué tan actualizada consideras que está la información de productos y precios en Tuali?",
+    "tipo": "opciones",
+    "opciones": "Siempre actualizada, Casi siempre, A veces, Nunca"
+  },
+  {
+    "id": "q20",
+    "texto": "¿Qué función o mejora te gustaría que se agregara a la app Tuali?",
+    "tipo": "texto"
+  },
+  {
+    "id": "q20",
+    "texto": "¿Qué función o mejora te gustaría que se agregara a la app Tuali?",
+    "tipo": "texto"
+  },
+  {
+    "id": "q21",
+    "texto": "Nos importa tu opinion",
+    "tipo": "texto"
+  }
+]
