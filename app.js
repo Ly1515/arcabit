@@ -50,10 +50,14 @@ async function loadUsers() {
             console.warn('--- app.js: users_db.json no encontrado. Iniciando con usuarios vacíos. ---');
             // Opcional: Crear un users_db.json por defecto si no existe para empezar
             // Asegúrate de que este admin por defecto sea solo para desarrollo.
-            users = [{ id: 'admin1', username: 'devadmin', password: 'devpassword', role: 'admin' }]; // Considera cambiar esto para producción
+            users = [
+                { id: 'admin1', username: 'devadmin', password: 'devpassword', role: 'admin' },
+                { id: 'super_user1', username: 'superuser', password: 'superpass', role: 'super-user' }, // Nuevo super-user por defecto
+                { id: 'regular_user1', username: 'regularuser', password: 'regularpass', role: 'user' } // Usuario normal por defecto
+            ];
             try {
                 await fsPromises.writeFile(USERS_DB_PATH, JSON.stringify({ users }, null, 2), 'utf8'); // Usar fsPromises
-                console.log('--- app.js: users_db.json por defecto creado con usuario admin (devadmin/devpassword) ---');
+                console.log('--- app.js: users_db.json por defecto creado con admin, super-user y user ---');
             } catch (writeErr) {
                 console.error('--- app.js: Error al crear users_db.json por defecto:', writeErr); //
             }
@@ -146,18 +150,18 @@ app.get('/', (req, res) => {
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
-    // Validar admin desde Environment Variables
+    // Validar admin desde Environment Variables (la máxima autoridad)
     const adminUser = process.env.ADMIN_USER;
     const adminPass = process.env.ADMIN_PASS;
 
     if (username === adminUser && password === adminPass) {
         req.session.isAuthenticated = true;
-        req.session.userId = 'admin'; // Assign a unique ID for the admin user
-        req.session.userRole = 'admin';
-        return res.json({ success: true, message: 'Login de admin exitoso', redirectURL: '/preguntas' });
+        req.session.userId = 'env_admin'; // ID único para el admin de ENV
+        req.session.userRole = 'admin'; // Asignamos el rol 'admin'
+        return res.json({ success: true, message: 'Login de admin (ENV) exitoso', redirectURL: '/preguntas' });
     }
 
-    // Buscar en la base de datos local (JSON)
+    // Buscar en la base de datos local (JSON) para otros roles (admin, super-user, user)
     const user = users.find(u => u.username === username && u.password === password);
 
     if (!user) {
@@ -169,6 +173,7 @@ app.post('/login', async (req, res) => {
         req.session.isAuthenticated = true;
         req.session.userId = user.id;
         req.session.userRole = user.role;
+        // La URL de redirección puede ser dinámica si quieres, pero '/preguntas' es un buen default
         return res.json({ success: true, message: 'Login exitoso', redirectURL: '/preguntas' });
     } else {
         req.session.isAuthenticated = false;
@@ -208,9 +213,9 @@ app.get('/api/userinfo', isAuthenticated, (req, res) => {
     // Busca el usuario completo en tu array 'users' cargado, si necesitas más datos que solo id y rol.
     // Handle 'admin' user from environment variables explicitly
     let user;
-    if (req.session.userId === 'admin') {
+    if (req.session.userId === 'env_admin') { // Identificador del admin de ENV
         user = {
-            id: 'admin',
+            id: 'env_admin',
             username: process.env.ADMIN_USER,
             role: 'admin'
         };
@@ -233,31 +238,31 @@ app.get('/api/userinfo', isAuthenticated, (req, res) => {
 
 // --- RUTAS DE LAS 4 VISTAS (PROTEGIDAS SEGÚN ROL) ---
 
-// Ruta para la página de preguntas (Admin y User)
-app.get('/preguntas', isAuthenticated, authorizeRoles('admin', 'user'), (req, res) => {
+// Ruta para la página de preguntas (Admin, Super-user y User)
+app.get('/preguntas', isAuthenticated, authorizeRoles('admin', 'super-user', 'user'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'preguntas.html')); //
 });
 
 
-// Ruta para la página de preguntas con CRUD (Solo Admin)
-app.get('/nuevaPregunta', isAuthenticated, authorizeRoles('admin'), (req, res) => {
+// Ruta para la página de preguntas con CRUD (Solo Admin y Super-user)
+app.get('/nuevaPregunta', isAuthenticated, authorizeRoles('admin', 'super-user'), (req, res) => { // Ahora super-user también puede
     res.sendFile(path.join(__dirname, 'public', 'nuevaPregunta.html')); //
 });
 
-// Ruta para la página de análisis de gráficos (Solo Admin)
-app.get('/charts', isAuthenticated, authorizeRoles('admin'), (req, res) => {
+// Ruta para la página de análisis de gráficos (Solo Admin y Super-user)
+app.get('/charts', isAuthenticated, authorizeRoles('admin', 'super-user'), (req, res) => { // Ahora super-user también puede
     res.sendFile(path.join(__dirname, 'public', 'charts.html')); //
 });
 
-// Ruta para la página del mapa (Admin y User)
-app.get('/mapa', isAuthenticated, authorizeRoles('admin', 'user'), (req, res) => {
+// Ruta para la página del mapa (Admin, Super-user y User)
+app.get('/mapa', isAuthenticated, authorizeRoles('admin', 'super-user', 'user'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'mapa.html')); //
 });
 
 // --- Integración de Routers Existentes (con protección si es necesario) ---
 // Aplica el middleware isAuthenticated y/o authorizeRoles a las rutas de los routers.
-app.use('/api/preguntas', isAuthenticated, authorizeRoles('admin', 'user'), preguntasRoutes); //
-app.use('/api/chat', isAuthenticated, authorizeRoles('admin'), chatRoutes); //
+app.use('/api/preguntas', isAuthenticated, authorizeRoles('admin', 'super-user', 'user'), preguntasRoutes); // Acceso para admin, super-user y user
+app.use('/api/chat', isAuthenticated, authorizeRoles('admin'), chatRoutes); // Solo admin (o puedes cambiar a 'admin', 'super-user')
 
 
 // --- Lógica y Endpoints del Mapa (mantienen aquí) ---
@@ -370,9 +375,9 @@ function sendLocationsBasedOnRole(req, res) {
     const userRole = req.session.userRole; //
     let locationsToSend = []; //
 
-    if (userRole === 'admin') { //
+    if (userRole === 'admin' || userRole === 'super-user') { // Admin y Super-user obtienen todas las ubicaciones
         locationsToSend = locations; // Admin gets all locations
-        console.log(`--- app.js: Admin (${req.session.userId}) solicitó todas las ubicaciones. Total: ${locationsToSend.length}`); //
+        console.log(`--- app.js: ${userRole} (${req.session.userId}) solicitó todas las ubicaciones. Total: ${locationsToSend.length}`); //
     } else if (userRole === 'user') { //
         // User gets a restricted number of locations, e.g., the first 5 stores
         const numberOfStoresForUser = 5; //
@@ -387,7 +392,7 @@ function sendLocationsBasedOnRole(req, res) {
 
 
 // Endpoint para servir las ubicaciones (API)
-app.get('/api/ubicaciones', isAuthenticated, authorizeRoles('admin', 'user'), (req, res) => {
+app.get('/api/ubicaciones', isAuthenticated, authorizeRoles('admin', 'super-user', 'user'), (req, res) => {
     // Check if locations are loaded, if not, try to load them
     if (locations.length === 0) { //
         console.warn('--- app.js: Solicitud de ubicaciones, pero el array está vacío. Intentando recargar. ---'); //
