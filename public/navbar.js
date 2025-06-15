@@ -32,19 +32,18 @@ function adaptNavbarForRole(role) {
 
 // Function to adjust body padding to prevent content from being hidden behind the fixed navbar
 function adjustBodyPadding() {
-    const navbar = document.querySelector('#navbar-container nav');
+    // Corrected selector: Get the navbar element directly within the container
+    const navbar = document.querySelector('#navbar-container nav'); // Targeting the <nav> element inside #navbar-container
+
     if (navbar) {
         const navbarHeight = navbar.offsetHeight;
         document.body.style.paddingTop = `${navbarHeight}px`;
         console.log(`Navbar height: ${navbarHeight}px. Body padding adjusted.`);
     } else {
+        // This warning should be less frequent now
         console.warn('Navbar element (<nav> inside #navbar-container) not found for padding adjustment.');
     }
 }
-// ... rest of your code ...
-window.addEventListener('resize', () => {
-    adjustBodyPadding();
-});
 
 // Logout button logic (no changes here)
 document.addEventListener('DOMContentLoaded', () => {

@@ -3,6 +3,8 @@ import 'dotenv/config'; // Carga las variables de entorno al inicio. ¡ESENCIAL!
 import express from 'express';
 import cors from 'cors';
 import session from 'express-session'; // Importar express-session
+import { spawn } from 'child_process'; // Para ejecutar scripts de Python (Mantenido para la función, aunque la detección principal es en JS)
+import sqlite3 from 'sqlite3'; // Para la base de datos SQLite
 import path from 'path';
 import * as fsPromises from 'fs/promises'; // Usar fsPromises para operaciones asíncronas con promesas
 import fs from 'fs'; // Usar fs para operaciones de stream como createReadStream
@@ -10,7 +12,6 @@ import csv from 'csv-parser'; // Para parsear archivos CSV
 import * as turf from '@turf/turf'; // Para operaciones geoespaciales
 import { fileURLToPath } from 'url';
 import { Readable } from 'stream'; // Importar Readable para el pipe del CSV
-import 'dotenv/config'; // Carga las variables de entorno al inicio. ¡ESENCIAL!
 
 // Reemplazo para __dirname y __filename en Módulos ES
 const __filename = fileURLToPath(import.meta.url);
@@ -21,13 +22,40 @@ const __dirname = path.dirname(__filename);
 import chatRoutes from './routes/chat.js';
 import preguntasRoutes from './routes/preguntas.js';
 
-
 console.log('--- app.js: Iniciando carga de configuración ---');
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Unificar puerto
+const PORT = process.env.PORT || 8001; // Unificar puerto
 
 console.log(`--- app.js: Puerto configurado a ${PORT} ---`);
+
+// --- Configuración de la Base de Datos SQLite ---
+const DB_FILE = path.join(__dirname, "parrafos_con_palabras_clave.db");
+
+const TABLE_QUEJA = 'respuestas_queja';
+const TABLE_RECOMENDACION = 'respuestas_recomendacion';
+const TABLE_SATISFACCION = 'respuestas_satisfaccion';
+
+const db = new sqlite3.Database(DB_FILE, (err) => {
+    if (err) {
+        console.error('Error al conectar con la base de datos SQLite:', err.message);
+    } else {
+        console.log('Conectado a la base de datos SQLite.');
+        // Asegúrate de que la columna 'tipo_pregunta' exista en tus tablas
+        const createTableQuery = (tableName) => `
+            CREATE TABLE IF NOT EXISTS ${tableName} (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                parrafo TEXT NOT NULL,
+                palabras_clave_detectadas TEXT,
+                fecha_deteccion TEXT NOT NULL,
+                tipo_pregunta TEXT -- Añadimos una columna para identificar la pregunta original (ej. 'q3')
+            )`;
+        db.run(createTableQuery(TABLE_QUEJA));
+        db.run(createTableQuery(TABLE_RECOMENDACION));
+        db.run(createTableQuery(TABLE_SATISFACCION));
+    }
+});
+
 
 // --- Configuración de Express-Session ---
 let users = []; // Declarar users en un scope más alto
@@ -123,21 +151,113 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'], //
 }));
 
-// --- Servir archivos estáticos ---
-// Sirve la carpeta 'public' directamente desde la raíz del servidor.
-// Esto hará que '/navbar.html', '/mapa.html', '/navbar.js', '/script.js', etc., sean accesibles.
-app.use(express.static(path.join(__dirname, 'public')));
+// --- Lógica para el Mapa (CSV y generación de ubicaciones) ---
+// Definir límites más amplios para generar puntos y luego filtrarlos
+const MIN_LAT_MEXICO_BOUND = 14.0;
+const MAX_LAT_MEXICO_BOUND = 33.0;
+const MIN_LON_MEXICO_BOUND = -119.0; // Incluyendo algo de Baja California
+const MAX_LON_MEXICO_BOUND = -85.0; // Incluyendo algo de Yucatán
 
-// Sirve la carpeta 'css' bajo la ruta '/css'.
-// Esto hará que '/css/navbar.css' sea accesible.
-app.use('/css', express.static(path.join(__dirname, 'css')));
+function getRandomLatitude() {
+    return Math.random() * (MAX_LAT_MEXICO_BOUND - MIN_LAT_MEXICO_BOUND) + MIN_LAT_MEXICO_BOUND;
+}
 
-// Sirve la carpeta 'img' bajo la ruta '/img'.
-// Esto hará que '/img/logo.png' sea accesible.
-app.use('/img', express.static(path.join(__dirname, 'img')));
+function getRandomLongitude() {
+    return Math.random() * (MAX_LON_MEXICO_BOUND - MIN_LON_MEXICO_BOUND) + MIN_LON_MEXICO_BOUND;
+}
 
-app.get('/favicon.ico', (req, res) => res.status(204).end());
+let mexicoBoundary = null; // Variable para almacenar la geometría de México
+let ubicaciones = [];
+const CSV_FILE_PATH = path.join(__dirname, 'data', 'arca_data.csv'); // Asegúrate de que este archivo exista
+const MEXICO_GEOJSON_PATH = path.join(__dirname, 'data', 'mx.json'); // Asegúrate de que este archivo exista
 
+// Cargar la geometría de México una sola vez al inicio
+const loadMexicoBoundary = () => {
+    return new Promise((resolve, reject) => {
+        fs.readFile(MEXICO_GEOJSON_PATH, 'utf8', (err, data) => {
+            if (err) {
+                console.error('Error al cargar el GeoJSON de México:', err);
+                return reject(err);
+            }
+            try {
+                mexicoBoundary = JSON.parse(data);
+                console.log('GeoJSON de México cargado exitosamente.');
+                resolve();
+            } catch (parseErr) {
+                console.error('Error al parsear el GeoJSON de México:', parseErr);
+                reject(parseErr);
+            }
+        });
+    });
+};
+
+const loadUbicaciones = async () => {
+    if (!mexicoBoundary) {
+        console.warn('Los límites de México no están cargados. Intentando cargar...');
+        try {
+            await loadMexicoBoundary();
+        } catch (error) {
+            console.error('No se pudieron cargar los límites de México, los puntos pueden estar fuera del país.');
+            // Puedes decidir si quieres abortar o continuar sin filtrado estricto
+            // For now, we will proceed but points might be outside
+        }
+    }
+
+    ubicaciones = [];
+    fs.createReadStream(CSV_FILE_PATH)
+        .pipe(csv())
+        .on('data', (row) => {
+            let latitud, longitud;
+            let pointInMexico = false;
+            let attempts = 0;
+            const MAX_ATTEMPTS = 100; // Limitar intentos para evitar bucles infinitos si hay un problema con el GeoJSON
+
+            // Generar coordenadas hasta que estén dentro de México
+            while (!pointInMexico && attempts < MAX_ATTEMPTS) {
+                latitud = getRandomLatitude();
+                longitud = getRandomLongitude();
+                const point = turf.point([longitud, latitud]); // Turf espera [longitud, latitud]
+
+                if (mexicoBoundary) {
+                    // Si el GeoJSON de México es un FeatureCollection, itera sobre sus features
+                    if (mexicoBoundary.type === 'FeatureCollection') {
+                        for (const feature of mexicoBoundary.features) {
+                            if (turf.booleanPointInPolygon(point, feature.geometry)) {
+                                pointInMexico = true;
+                                break;
+                            }
+                        }
+                    } else if (mexicoBoundary.type === 'Feature' || mexicoBoundary.type === 'Polygon' || mexicoBoundary.type === 'MultiPolygon') {
+                        // Si es un solo Feature o Polygon/MultiPolygon
+                        if (turf.booleanPointInPolygon(point, mexicoBoundary)) {
+                            pointInMexico = true;
+                        }
+                    }
+                } else {
+                    // Si no se pudo cargar el GeoJSON, acepta las coordenadas dentro de los límites amplios
+                    pointInMexico = true;
+                }
+                attempts++;
+            }
+
+            if (pointInMexico) {
+                row.id = ubicaciones.length + 1; // Asigna un ID simple
+                row.latitud = latitud;
+                row.longitud = longitud;
+                ubicaciones.push(row);
+            } else {
+                console.warn(`No se pudo encontrar una coordenada para el registro ${row.id || ubicaciones.length + 1} dentro de México después de ${MAX_ATTEMPTS} intentos. Se omitirá el punto o se usará la última coordenada generada.`);
+                // Decide si quieres omitir el punto o asignarle una coordenada fuera de México.
+                // Aquí lo estamos omitiendo si no se encuentra un punto válido.
+            }
+        })
+        .on('end', () => {
+            console.log('CSV de ubicaciones cargado y coordenadas aleatorias (filtradas por México) asignadas:', ubicaciones.length, 'registros.');
+        })
+        .on('error', (err) => {
+            console.error('Error al cargar el CSV:', err);
+        });
+};
 
 // --- RUTAS DE AUTENTICACIÓN ---
 
@@ -145,7 +265,7 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/', (req, res) => {
     // Si ya está autenticado, redirigir a la página de preguntas (o la principal)
     if (req.session.isAuthenticated) { //
-        return res.redirect('/preguntas'); //
+        return res.redirect('/mapa'); //
     }
     res.sendFile(path.join(__dirname, 'public', 'login.html')); //
 });
@@ -162,7 +282,7 @@ app.post('/login', async (req, res) => {
         req.session.isAuthenticated = true;
         req.session.userId = 'env_admin'; // ID único para el admin de ENV
         req.session.userRole = 'admin'; // Asignamos el rol 'admin'
-        return res.json({ success: true, message: 'Login de Super Admin (ENV) exitoso', redirectURL: '/preguntas' });
+        return res.json({ success: true, message: 'Login de Super Admin (ENV) exitoso', redirectURL: '/mapa' });
     }
 
     // 2. Validar Super Usuario desde Environment Variables
@@ -173,7 +293,7 @@ app.post('/login', async (req, res) => {
         req.session.isAuthenticated = true;
         req.session.userId = 'env_superuser'; // ID único para el super user de ENV
         req.session.userRole = 'super-user'; // Asignamos el rol 'super-user'
-        return res.json({ success: true, message: 'Login de Super User (ENV) exitoso', redirectURL: '/preguntas' });
+        return res.json({ success: true, message: 'Login de Super User (ENV) exitoso', redirectURL: '/mapa' });
     }
 
     // 3. Buscar en la base de datos local (JSON) para otros roles (admin, super-user, user)
@@ -189,7 +309,7 @@ app.post('/login', async (req, res) => {
         req.session.userId = user.id;
         req.session.userRole = user.role;
         // La URL de redirección puede ser dinámica si quieres, pero '/preguntas' es un buen default
-        return res.json({ success: true, message: 'Login exitoso', redirectURL: '/preguntas' });
+        return res.json({ success: true, message: 'Login exitoso', redirectURL: '/mapa' });
     } else {
         req.session.isAuthenticated = false;
         return res.status(401).json({ success: false, message: 'Usuario sin rol. Contacta a administrador' });
@@ -246,226 +366,306 @@ app.get('/api/userinfo', isAuthenticated, (req, res) => {
     if (user) { //
         res.json({
             id: user.id, //
-            nombre: user.nombre, // O user.username si así lo tienes en users_db.json
+            nombre: user.username, // Usar user.username que es lo que se carga de users_db.json
             role: user.role //
         });
     } else {
-        // Esto no debería ocurrir si isAuthenticated ya pasó, pero es un fallback.
-        res.status(404).json({ error: 'Información de usuario no encontrada en la base de datos.' }); //
+        // Esto no debería ocurrir si isAuthenticated ya pasó,
+        return res.status(404).json({ error: 'Usuario no encontrado en la base de datos de sesión.' });
     }
 });
 
+// --- Montaje de Rutas de API ---
+// Es CRÍTICO que tus rutas de API se monten ANTES de servir archivos estáticos.
+app.use('/api/chat', chatRoutes);       // Endpoint para chat: /api/chat/chat
+console.log('--- app.js: Rutas de chat montadas en /api/chat ---');
 
-// --- RUTAS DE LAS 4 VISTAS (PROTEGIDAS SEGÚN ROL) ---
+app.use('/api/preguntas', preguntasRoutes); // Endpoint para preguntas: /api/preguntas/
+console.log('--- app.js: Rutas de preguntas montadas en /api/preguntas ---');
 
-// Ruta para la página de preguntas (Admin, Super-user y User)
-app.get('/preguntas', isAuthenticated, authorizeRoles('admin', 'super-user', 'user'), (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'preguntas.html')); //
+// Ruta para obtener ubicaciones del mapa (ahora sin autenticación, si se desea abierta)
+// Si quieres proteger esta ruta, añade isAuthenticated:
+app.get('/api/ubicaciones', isAuthenticated, (req, res) => {
+    res.json(ubicaciones);
 });
 
 
-// Ruta para la página de preguntas con CRUD (Solo Admin y Super-user)
-app.get('/nuevaPregunta', isAuthenticated, authorizeRoles('admin', 'super-user'), (req, res) => { // Ahora super-user también puede
-    res.sendFile(path.join(__dirname, 'public', 'nuevaPregunta.html')); //
-});
+// --- Lógica de Reconocimiento de Palabras Clave y Encuesta ---
 
-// Ruta para la página de análisis de gráficos (Solo Admin y Super-user)
-app.get('/charts', isAuthenticated, authorizeRoles('admin', 'super-user'), (req, res) => { // Ahora super-user también puede
-    res.sendFile(path.join(__dirname, 'public', 'charts.html')); //
-});
+// Función auxiliar para ejecutar el script de Python (si aún es necesario para algo)
+// NOTA: La detección de palabras clave principales se hace ahora en Node.js.
+// Este script de Python ahora solo sería útil si realiza un procesamiento NLP más complejo
+// que no se puede replicar fácilmente en Node.js, o si valida algo.
+function runPythonKeywordDetection(text) {
+    return new Promise((resolve, reject) => {
+        const pythonScriptPath = path.join(__dirname, 'KeyWords_p.py');
+        const pythonProcess = spawn('python', [pythonScriptPath, text]);
 
-// Ruta para la página del mapa (Admin, Super-user y User)
-app.get('/mapa', isAuthenticated, authorizeRoles('admin', 'super-user', 'user'), (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'mapa.html')); //
-});
+        let pythonOutput = '';
+        let pythonError = '';
 
-// --- Integración de Routers Existentes (con protección si es necesario) ---
-// Aplica el middleware isAuthenticated y/o authorizeRoles a las rutas de los routers.
-app.use('/api/preguntas', isAuthenticated, authorizeRoles('admin', 'super-user', 'user'), preguntasRoutes); // Acceso para admin, super-user y user
-app.use('/api/chat', isAuthenticated, authorizeRoles('admin'), chatRoutes); // Solo admin (o puedes cambiar a 'admin', 'super-user')
+        pythonProcess.stdout.on('data', (data) => {
+            pythonOutput += data.toString();
+        });
 
+        pythonProcess.stderr.on('data', (data) => {
+            pythonError += data.toString();
+        });
 
-// --- Lógica y Endpoints del Mapa (mantienen aquí) ---
-
-let mexicoBoundary = null; // Para almacenar el GeoJSON del límite de México
-const locations = []; // Para almacenar las ubicaciones del CSV
-
-// Función para cargar el GeoJSON del límite de México
-async function loadMexicoBoundary() {
-    try {
-        const data = await fsPromises.readFile(path.join(__dirname, 'data', 'mx.json'), 'utf8'); // Usar fsPromises
-        mexicoBoundary = JSON.parse(data); //
-        console.log('--- app.js: Límite de México cargado exitosamente ---'); //
-    } catch (error) {
-        console.error('--- app.js: Error al cargar el GeoJSON del límite de México:', error.message); //
-        throw error; // Re-lanza el error para que la inicialización falle si esto es crítico
-    }
+        pythonProcess.on('close', (code) => {
+            if (code !== 0) {
+                console.error(`Error en el script de Python (código ${code}): ${pythonError}`);
+                return reject(new Error(`Error al procesar la respuesta con Python: ${pythonError}`));
+            }
+            try {
+                const result = JSON.parse(pythonOutput); 
+                resolve(result); 
+            } catch (jsonParseError) {
+                console.warn('Advertencia: Error al parsear la salida de Python. Asumiendo éxito si no hay error de proceso. Salida cruda:', pythonOutput);
+                resolve({ detected_keywords: [], matched_sentences: {} }); // Devuelve algo por defecto si no es JSON válido
+            }
+        });
+    });
 }
 
-// Definir límites más amplios para generar puntos y luego filtrarlos (estos ya no generan aleatorios)
-const MIN_LAT_MEXICO_BOUND = 14.0; //
-const MAX_LAT_MEXICO_BOUND = 33.0; //
-const MIN_LON_MEXICO_BOUND = -119.0; //
-const MAX_LON_MEXICO_BOUND = -85.0; //
+// Endpoint para manejar los envíos de la encuesta
+app.post('/submit-survey', isAuthenticated, async (req, res) => { // Protege esta ruta
+    // req.body ahora es un objeto con las respuestas de texto (ej. { "q3": "Tu problema...", "q5": "Otra descripción..." })
+    const textResponses = req.body; 
 
-// Ya no necesitamos getRandomLatitude/Longitude si solo leemos del CSV
+    if (Object.keys(textResponses).length === 0) {
+        return res.status(400).json({ success: false, message: 'No se proporcionó ninguna respuesta de texto para procesar.' });
+    }
 
+    const operations = [];
+    const savedCategories = [];
+    const detectedKeywordsByQuestion = {}; // Para almacenar las palabras clave por ID de pregunta
 
-// Función para cargar ubicaciones desde el CSV
-async function loadUbicaciones() {
-    locations.length = 0; // Limpiar array antes de cargar
-    const csvFilePath = path.join(__dirname, 'data', 'arca_data.csv'); // Ruta corregida
-    let rowNum = 0; // Para el seguimiento de la fila para errores
+    // Define las palabras clave para cada categoría (se mantienen las que ya se habían agregado)
+    const categoryKeywords = {
+        queja: { 
+            table: TABLE_QUEJA, 
+            keywords: [
+                "queja", "quejar", "quejarse", "quejas", "malo", "pesimo", "terrible", 
+                "problema", "fallo", "defecto", "dificil", "complicado", "error", 
+                "lento", "no funciona", "defectuoso", "inaccesible", "frustrante"
+            ] 
+        },
+        recomendacion: { 
+            table: TABLE_RECOMENDACION, 
+            keywords: [
+                "recomendacion", "recomendar", "recomendaciones", "sugerencia", 
+                "mejora", "mejorar", "propuesta", "ideas", "añadir", "agregar", 
+                "implementar", "futuro", "desarrollar", "innovar", "sugerir"
+            ] 
+        },
+        satisfaccion: { 
+            table: TABLE_SATISFACCION, 
+            keywords: [
+                "satisfecho", "satisfecha", "satisfaccion", "satisfechos", "satisfechas", 
+                "satisfactorio", "satisfactoria", "excelente", "bueno", "perfecto", 
+                "agradable", "feliz", "facil", "simple", "rapido", "util", "eficiente", 
+                "contento", "increible", "genial"
+            ] 
+        }
+    };
 
-    try {
-        await fsPromises.access(csvFilePath); // Usar fsPromises.access
+    for (const questionId in textResponses) {
+        const responseText = textResponses[questionId];
 
-        // Crear un stream de lectura del archivo
-        const fileStream = fs.createReadStream(csvFilePath, 'utf8'); // AHORA SÍ USA fs.createReadStream
+        if (!responseText || responseText.trim() === '') {
+            console.log(`Respuesta de "${questionId}" está vacía. Saltando procesamiento.`);
+            continue;
+        }
 
-        fileStream.pipe(csv()) //
-            .on('data', (row) => { //
-                rowNum++; //
-                let latitud, longitud; //
+        try {
+            const normalizedResponseText = responseText.toLowerCase();
+            let detected_keywords_for_this_response = [];
+            let targetTable = null;
+            let detectedCategory = null;
 
-                // Extraer latitud y longitud del campo 'geometry'
-                if (row.geometry && typeof row.geometry === 'string') { //
-                    const match = row.geometry.match(/POINT \(([-]?\d+\.?\d*)\s+([-]?\d+\.?\d*)\)/); //
-                    if (match && match.length === 3) { //
-                        longitud = parseFloat(match[1]); // El primer número es longitud
-                        latitud = parseFloat(match[2]);  // El segundo número es latitud
+            for (const catName in categoryKeywords) {
+                const keywordsToCheck = categoryKeywords[catName].keywords;
+                const foundKeywords = keywordsToCheck.filter(kw => normalizedResponseText.includes(kw));
+
+                if (foundKeywords.length > 0) {
+                    detected_keywords_for_this_response.push(...foundKeywords);
+                    if (!targetTable) { 
+                        targetTable = categoryKeywords[catName].table;
+                        detectedCategory = catName;
                     }
                 }
+            }
+            
+            detected_keywords_for_this_response = [...new Set(detected_keywords_for_this_response)];
 
-                if (latitud && longitud && !isNaN(latitud) && !isNaN(longitud)) { //
-                    const lat = parseFloat(latitud); //
-                    const lon = parseFloat(longitud); //
+            const fechaDeteccion = new Date().toISOString();
+            const keywordsString = detected_keywords_for_this_response.join(', ');
+            detectedKeywordsByQuestion[questionId] = detected_keywords_for_this_response;
 
-                    if (mexicoBoundary) { //
-                        const point = turf.point([lon, lat]); //
-                        let pointInMexico = false; //
-
-                        if (mexicoBoundary.type === 'FeatureCollection') { //
-                            for (const feature of mexicoBoundary.features) { //
-                                if (turf.booleanPointInPolygon(point, feature.geometry)) { //
-                                    pointInMexico = true; //
-                                    break; //
-                                }
+            if (targetTable) {
+                operations.push(new Promise((resolve, reject) => {
+                    db.run(`INSERT INTO ${targetTable} (parrafo, palabras_clave_detectadas, fecha_deteccion, tipo_pregunta) VALUES (?, ?, ?, ?)`,
+                        [responseText, keywordsString, fechaDeteccion, questionId],
+                        function(err) {
+                            if (err) return reject(err);
+                            if (!savedCategories.includes(detectedCategory)) {
+                                savedCategories.push(detectedCategory);
                             }
-                        } else if (mexicoBoundary.type === 'Feature' || mexicoBoundary.type === 'Polygon' || mexicoBoundary.type === 'MultiPolygon') { //
-                            if (turf.booleanPointInPolygon(point, mexicoBoundary)) { //
-                                pointInMexico = true; //
-                            }
+                            resolve();
                         }
+                    );
+                }));
+            } else {
+                console.log(`Respuesta de "${questionId}" procesada pero no se detectó una categoría específica para guardar en las tablas predefinidas.`);
+            }
 
-                        if (!pointInMexico) { //
-                            console.warn(`--- app.js: Ubicación (lat: ${lat}, lon: ${lon}) de la fila ${rowNum} fuera de los límites de México. Omitiendo.`); //
-                            return;
-                        }
-                    }
-
-                    locations.push({
-                        id: row.id || `row_${rowNum}`, //
-                        nombre: row.nombre || `Ubicación ${rowNum}`, //
-                        latitud: lat, //
-                        longitud: lon, //
-                        nps: row.nps || 'N/A' //
-                    });
-                } else {
-                    console.warn(`--- app.js: Fila ${rowNum} del CSV omitida debido a datos de latitud/longitud incompletos o inválidos (después de intentar parsear 'geometry'):`, row); //
-                }
-            })
-            .on('end', () => { //
-                console.log(`--- app.js: ${locations.length} ubicaciones cargadas desde ${csvFilePath} ---`); //
-            })
-            .on('error', (error) => { //
-                console.error('--- app.js: Error al cargar el CSV (stream):', error.message); //
-            });
-    } catch (error) {
-        if (error.code === 'ENOENT') { //
-            console.error(`--- app.js: El archivo CSV no fue encontrado en: ${csvFilePath} ---`); //
-        } else {
-            console.error('--- app.js: Error al leer el archivo CSV (acceso):', error); //
+        } catch (error) {
+            console.error(`Error procesando la respuesta para la pregunta ${questionId}:`, error.message);
         }
     }
-}
 
-// Helper function to send locations based on user role
-function sendLocationsBasedOnRole(req, res) {
-    const userRole = req.session.userRole; //
-    let locationsToSend = []; //
-
-    if (userRole === 'admin' || userRole === 'super-user') { // Admin y Super-user obtienen todas las ubicaciones
-        locationsToSend = locations; // Admin gets all locations
-        console.log(`--- app.js: ${userRole} (${req.session.userId}) solicitó todas las ubicaciones. Total: ${locationsToSend.length}`); //
-    } else if (userRole === 'user') { //
-        // User gets a restricted number of locations, e.g., the first 5 stores
-        const numberOfStoresForUser = 5; //
-        locationsToSend = locations.slice(0, numberOfStoresForUser); //
-        console.log(`--- app.js: Usuario (${req.session.userId}) solicitó ubicaciones. Restringido a: ${locationsToSend.length}`); //
-    } else {
-        // Should not happen if authorizeRoles is working, but as a fallback
-        return res.status(403).json({ message: 'Acceso denegado: Rol de usuario no reconocido.' }); //
+    if (operations.length === 0) {
+        return res.json({ success: true, message: 'Respuestas procesadas, pero ninguna se detectó en una categoría específica o no se proporcionaron respuestas de texto válidas.', keywords: detectedKeywordsByQuestion });
     }
-    res.json(locationsToSend); //
-}
+
+    try {
+        await Promise.all(operations);
+        res.json({ success: true, message: 'Respuestas guardadas exitosamente.', categories: savedCategories, keywords: detectedKeywordsByQuestion });
+    } catch (err) {
+        console.error('Error al guardar alguna de las respuestas en la BD:', err.message);
+        res.status(500).json({ success: false, message: 'Error al guardar alguna de las respuestas.', error: err.message });
+    }
+});
 
 
-// Endpoint para servir las ubicaciones (API)
-app.get('/api/ubicaciones', isAuthenticated, authorizeRoles('admin', 'super-user', 'user'), (req, res) => {
-    // Check if locations are loaded, if not, try to load them
-    if (locations.length === 0) { //
-        console.warn('--- app.js: Solicitud de ubicaciones, pero el array está vacío. Intentando recargar. ---'); //
-        loadUbicaciones().then(() => { //
-            if (locations.length > 0) { //
-                sendLocationsBasedOnRole(req, res); // Call helper function after loading
-            } else {
-                res.status(500).json({ message: 'No se pudieron cargar las ubicaciones desde el archivo CSV.' }); //
-            }
-        }).catch(err => { //
-            console.error('--- app.js: Error al recargar ubicaciones en /api/ubicaciones:', err); //
-            res.status(500).json({ message: 'Error interno del servidor al cargar ubicaciones.' }); //
+// Endpoint para obtener respuestas por categoría (Protegido por autenticación y rol)
+app.get('/api/responses/:category', isAuthenticated, authorizeRoles('admin', 'super-user'), (req, res) => {
+    const categoryMap = {
+        'quejas': TABLE_QUEJA,
+        'recomendaciones': TABLE_RECOMENDACION,
+        'satisfaccion': TABLE_SATISFACCION
+    };
+    const tableName = categoryMap[req.params.category];
+
+    if (!tableName) {
+        return res.status(400).json({ success: false, message: 'Categoría no válida.' });
+    }
+
+    db.all(`SELECT * FROM ${tableName} ORDER BY fecha_deteccion DESC`, [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ success: false, message: `Error al obtener datos de ${tableName}.` });
+        }
+        res.json({ success: true, data: rows });
+    });
+});
+
+// Endpoint para obtener el conteo de comentarios POR CATEGORÍA para el gráfico (Protegido por autenticación y rol)
+app.get('/api/keywords-count', isAuthenticated, authorizeRoles('admin', 'super-user'), async (req, res) => {
+    try {
+        const getCategoryCount = (tableName, label) => {
+            return new Promise((resolve, reject) => {
+                db.get(`SELECT COUNT(*) as count FROM ${tableName}`, [], (err, row) => {
+                    if (err) {
+                        return reject(err);
+                    }
+                    resolve({ label: label, value: row ? row.count : 0 });
+                });
+            });
+        };
+
+        const results = await Promise.all([
+            getCategoryCount(TABLE_QUEJA, 'Quejas'),
+            getCategoryCount(TABLE_RECOMENDACION, 'Recomendaciones'),
+            getCategoryCount(TABLE_SATISFACCION, 'Satisfacción')
+        ]);
+
+        const chartData = results.filter(item => item.value > 0);
+
+        res.json({ success: true, data: chartData });
+
+    } catch (err) {
+        console.error("Error al obtener el conteo por categoría:", err);
+        res.status(500).json({ success: false, message: "Error al obtener los datos para el gráfico." });
+    }
+});
+
+// Endpoint para resetear las respuestas (Protegido por autenticación y rol)
+app.post('/api/reset-responses', isAuthenticated, authorizeRoles('admin'), (req, res) => {
+    const tables = [TABLE_QUEJA, TABLE_RECOMENDACION, TABLE_SATISFACCION];
+    const resetOperations = tables.map(table => new Promise((resolve, reject) => {
+        db.run(`DELETE FROM ${table}`, [], err => {
+            if (err) return reject(err);
+            resolve();
         });
-    } else {
-        sendLocationsBasedOnRole(req, res); // Send locations directly if already loaded
-    }
+    }));
+
+    Promise.all(resetOperations)
+        .then(() => res.json({ success: true, message: 'Todas las respuestas han sido reseteadas.' }))
+        .catch(err => res.status(500).json({ success: false, message: 'Error al resetear las respuestas.', error: err.message }));
+});
+
+
+// --- Servir Archivos Estáticos ---
+// Sirve la carpeta 'public' directamente desde la raíz del servidor.
+// Esto hará que '/navbar.html', '/mapa.html', '/navbar.js', '/script.js', etc., sean accesibles.
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Sirve la carpeta 'css' bajo la ruta '/css'.
+// Esto hará que '/css/navbar.css' sea accesible.
+app.use('/css', express.static(path.join(__dirname, 'css')));
+
+// Sirve la carpeta 'img' bajo la ruta '/img'.
+// Esto hará que '/img/logo.png' sea accesible.
+app.use('/img', express.static(path.join(__dirname, 'img')));
+
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
+
+// --- Rutas para servir las páginas HTML específicas del mapa y preguntas (protegidas) ---
+app.get('/mapa', isAuthenticated, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'mapa.html')); // Asumiendo que mapa.html es tu página del mapa
+});
+
+app.get('/preguntas', isAuthenticated, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'preguntas.html')); // Página de preguntas
+});
+
+// Nueva ruta para el dashboard, solo para roles 'admin' o 'super-user'
+app.get('/charts', isAuthenticated, authorizeRoles('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'charts.html'));
 });
 
 
 // --- Manejo de Rutas No Encontradas (404) ---
-// Este middleware debe ir DESPUÉS de todas tus rutas y configuraciones de archivos estáticos.
 app.use((req, res, next) => {
-    console.log(`--- app.js: Ruta NO ENCONTRADA. URL solicitada: ${req.originalUrl} ---`); //
-    // Asegúrate de que 'public/404.html' exista.
-    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'), (err) => { // Añadido callback para manejar error de sendFile
-        if (err) { //
-            console.error('--- app.js: ERROR al enviar 404.html. Posiblemente el archivo no existe. ---'); // Log más específico
-            console.error(err); //
-            res.status(500).send('Error interno del servidor: Página no encontrada y error al cargar la página 404.'); // Mensaje de fallback
-        }
-    });
+    console.log(`--- app.js: Ruta NO ENCONTRADA. URL solicitada: ${req.originalUrl} ---`);
+    res.status(404).send('Lo siento, la ruta que buscas no existe o el recurso no fue encontrado.');
 });
 
 // --- Manejador de Errores General ---
 app.use((err, req, res, next) => {
-    console.error('--- app.js: ERROR NO MANEJADO DETECTADO ---'); //
+    console.error('--- app.js: ERROR NO MANEJADO DETECTADO ---');
     console.error(err.stack); // Imprime el stack trace del error en la consola del servidor
-    res.status(500).send('Algo salió mal en el servidor!'); //
+    res.status(500).send('Algo salió mal en el servidor!');
 });
 
 
 // --- Inicialización de Carga de Datos del Mapa ---
 // Asegúrate de cargar los límites antes de cargar las ubicaciones
-loadMexicoBoundary().then(() => { //
-    loadUbicaciones(); //
-}).catch(err => { //
-    console.error('Error fatal al iniciar: no se pudo cargar el límite de México. Los puntos no se filtrarán correctamente. Error:', err.message); //
+loadMexicoBoundary().then(() => {
+    loadUbicaciones();
+}).catch(err => {
+    console.error('Error fatal al iniciar: no se pudo cargar el límite de México. Los puntos no se filtrarán correctamente. Error:', err.message);
     loadUbicaciones(); // Intenta cargar ubicaciones de todos modos, pero sin filtro de polígono.
 });
 
 
 // --- Inicio del Servidor ---
-app.listen(PORT, () => { //
-    console.log(`--- app.js: Servidor escuchando en http://localhost:${PORT} ---`); //
-    console.log(`--- app.js: Accede a la aplicación en http://localhost:${PORT} ---`); //
+app.listen(PORT, () => {
+    console.log(`--- app.js: Servidor escuchando en http://localhost:${PORT} ---`);
+    console.log(`--- app.js: Accede a tu aplicación de login en http://localhost:${PORT}/ ---`);
+    console.log(`--- app.js: Accede a tu aplicación de mapa en http://localhost:${PORT}/mapa ---`);
+    console.log(`--- app.js: Accede a tu aplicación de preguntas en http://localhost:${PORT}/preguntas ---`);
+    console.log(`--- app.js: Accede al dashboard en http://localhost:${PORT}/dashboard ---`);
 });
