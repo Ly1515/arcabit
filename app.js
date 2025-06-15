@@ -143,7 +143,7 @@ app.get('/', (req, res) => {
     if (req.session.isAuthenticated) { //
         return res.redirect('/preguntas'); //
     }
-    res.sendFile(path.join(__dirname, 'public', 'preguntas.html')); //
+    res.sendFile(path.join(__dirname, 'public', 'login.html')); //
 });
 
 // Manejo del login
