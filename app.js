@@ -32,11 +32,6 @@ console.log(`--- app.js: Puerto configurado a ${PORT} ---`);
 let users = []; // Declarar users en un scope más alto
 const USERS_DB_PATH = path.join(__dirname, 'users_db.json');
 
-const fs = require('fs');
-
-console.log('Ruta de usuarios:', USERS_DB_PATH);
-console.log('Existe archivo:', fs.existsSync(USERS_DB_PATH));
-
 
 async function loadUsers() {
     try {
