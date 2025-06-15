@@ -1,507 +1,559 @@
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Responder Preguntas</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="/css/navbar.css">
-        <style>
-            body {
-                font-family: 'Inter', sans-serif;
-                background-color: #f3f4f6; /* light gray background */
-                display: flex; /* Cambiado de flex para centrar a columna */
-                flex-direction: column; /* Organiza los elementos en columna */
-                justify-content: flex-start; /* Alinea el contenido al inicio de la columna */
-                align-items: center; /* Centra el contenido horizontalmente */
-                min-height: 100vh;
-                padding: 0; /* Removido el padding del body, se manejará en el contenedor principal */
-            }
-            .container {
-                background-color: #ffffff;
-                border-radius: 16px; /* rounded-2xl */
-                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* shadow-xl */
-                padding: 2.5rem; /* p-10 */
-                padding-top: 5rem; /* Añadido padding-top para dejar espacio a la navbar */
-                max-width: 800px;
-                width: 100%;
-                margin-top: 0; /* Asegura que no haya margen superior si el body no tiene padding */
-            }
-            .section-title {
-                color: #3b82f6; /* blue-600 */
-                font-size: 2.25rem; /* text-4xl */
-                font-weight: 700; /* font-extrabold */
-                margin-bottom: 1.5rem; /* mb-6 */
-                text-align: center;
-            }
-            .question-card {
-                background-color: #f9fafb; /* gray-50 */
-                border: 1px solid #e5e7eb; /* gray-200 */
-                border-radius: 12px; /* rounded-xl */
-                padding: 1.5rem; /* p-6 */
-                margin-bottom: 1.25rem; /* mb-5 */
-                display: flex; /* Flexbox para alinear texto y botones */
-                flex-direction: column;
-            }
-            .question-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 1rem;
-            }
-            .question-text {
-                font-size: 1.25rem; /* text-xl */
-                font-weight: 600; /* font-semibold */
-                color: #1f2937; /* gray-900 */
-                flex-grow: 1; /* Permite que el texto ocupe espacio disponible */
-            }
-            .input-group label {
-                display: flex;
-                align-items: center;
-                margin-bottom: 0.5rem;
-                cursor: pointer;
-                font-size: 1rem; /* text-base */
-                color: #4b5563; /* gray-700 */
-            }
-            .input-group input[type="radio"],
-            .input-group input[type="checkbox"] {
-                margin-right: 0.75rem; /* mr-3 */
-                width: 1.25rem; /* w-5 */
-                height: 1.25rem; /* h-5 */
-                accent-color: #3b82f6; /* blue-500 */
-            }
-            .text-input {
-                width: 100%;
-                padding: 0.75rem; /* p-3 */
-                border: 1px solid #d1d5db; /* gray-300 */
-                border-radius: 0.5rem; /* rounded-lg */
-                outline: none;
-                transition: border-color 0.2s;
-            }
-            .text-input:focus {
-                border-color: #3b82f6; /* blue-500 */
-                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* ring-blue-200 */
-            }
-            .form-action-buttons {
-                display: flex;
-                flex-direction: column;
-                gap: 1rem;
-                margin-top: 2rem;
-            }
-            .form-action-buttons button {
-                padding: 0.75rem 1.5rem; /* py-3 px-6 */
-                border-radius: 0.75rem; /* rounded-xl */
-                font-weight: 600; /* font-semibold */
-                transition: all 0.2s ease-in-out;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            }
-            .form-action-buttons button.primary {
-                background-color: #22c55e; /* green-500 */
-                color: white;
-            }
-            .form-action-buttons button.primary:hover {
-                background-color: #16a34a; /* green-600 */
-                transform: translateY(-2px);
-            }
-            /* Estilos para el modal personalizado */
-            .modal-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0, 0, 0, 0.5);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 1000;
-            }
-            .modal-content {
-                background-color: white;
-                padding: 2rem;
-                border-radius: 12px; /* rounded-xl */
-                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15); /* shadow-xl */
-                text-align: center;
-                max-width: 400px;
-                width: 90%;
-            }
-            .modal-content h3 {
-                font-size: 1.5rem; /* text-xl */
-                font-weight: 600; /* font-semibold */
-                margin-bottom: 1rem;
-            }
-            .modal-content p {
-                margin-bottom: 1.5rem;
-                color: #4b5563; /* text-gray-700 */
-            }
-            .modal-content button {
-                background-color: #3b82f6; /* blue-500 */
-                color: white;
-                padding: 0.75rem 1.5rem;
-                border-radius: 8px; /* rounded-lg */
-                font-weight: 600; /* font-semibold */
-                transition: background-color 0.2s;
-            }
-            .modal-content button:hover {
-                background-color: #2563eb; /* blue-600 */
-            }
-            /* Hidden class for conditional display */
-            .hidden {
-                display: none;
-            }
-        </style>
-    </head>
-    <body>
-        <div id="navbar-container"></div>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-1.0" />
+    <title>Responder Preguntas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/navbar.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* light gray background */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            min-height: 100vh;
+            padding: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 16px; /* rounded-2xl */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* shadow-xl */
+            padding: 2.5rem; /* p-10 */
+            padding-top: 5rem; /* Añadido padding-top para dejar espacio a la navbar */
+            max-width: 800px;
+            width: 100%;
+            margin-top: 0;
+        }
+        .section-title {
+            color: #3b82f6; /* blue-600 */
+            font-size: 2.25rem; /* text-4xl */
+            font-weight: 700; /* font-extrabold */
+            margin-bottom: 1.5rem; /* mb-6 */
+            text-align: center;
+        }
+        .question-card {
+            background-color: #f9fafb; /* gray-50 */
+            border: 1px solid #e5e7eb; /* gray-200 */
+            border-radius: 12px; /* rounded-xl */
+            padding: 1.5rem; /* p-6 */
+            margin-bottom: 1.25rem; /* mb-5 */
+            display: flex;
+            flex-direction: column;
+        }
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .question-text {
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 600; /* font-semibold */
+            color: #1f2937; /* gray-900 */
+            flex-grow: 1;
+        }
+        .input-group {
+            margin-bottom: 1rem; /* Added spacing for input groups */
+        }
+        .input-group label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem; /* text-base */
+            color: #4b5563; /* gray-700 */
+        }
+        .input-group input[type="radio"],
+        .input-group input[type="checkbox"] {
+            margin-right: 0.75rem; /* mr-3 */
+            width: 1.25rem; /* w-5 */
+            height: 1.25rem; /* h-5 */
+            accent-color: #3b82f6; /* blue-500 */
+        }
+        .text-input {
+            width: 100%;
+            padding: 0.75rem; /* p-3 */
+            border: 1px solid #d1d5db; /* gray-300 */
+            border-radius: 0.5rem; /* rounded-lg */
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .text-input:focus {
+            border-color: #3b82f6; /* blue-500 */
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* ring-blue-200 */
+        }
+        .form-action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        .form-action-buttons button {
+            padding: 0.75rem 1.5rem; /* py-3 px-6 */
+            border-radius: 0.75rem; /* rounded-xl */
+            font-weight: 600; /* font-semibold */
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .form-action-buttons button.primary {
+            background-color: #22c55e; /* green-500 */
+            color: white;
+        }
+        .form-action-buttons button.primary:hover {
+            background-color: #16a34a; /* green-600 */
+            transform: translateY(-2px);
+        }
+        /* Estilos para el modal personalizado */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 12px; /* rounded-xl */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15); /* shadow-xl */
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        .modal-content h3 {
+            font-size: 1.5rem; /* text-xl */
+            font-weight: 600; /* font-semibold */
+            margin-bottom: 1rem;
+        }
+        .modal-content p {
+            margin-bottom: 1.5rem;
+            color: #4b5563; /* text-gray-700 */
+        }
+        .modal-content button {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px; /* rounded-lg */
+            font-weight: 600; /* font-semibold */
+            transition: background-color 0.2s;
+        }
+        .modal-content button:hover {
+            background-color: #2563eb; /* blue-600 */
+        }
+        /* Hidden class for conditional display */
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-container"></div>
 
-        <div class="container">
-            <h1 class="section-title">Responder Preguntas</h1>
+    <div class="container">
+        <h1 class="section-title">Responder Preguntas</h1>
 
-            <form id="questions-form">
-                <div id="lista-preguntas" class="space-y-6">
-                </div>
-
-                <div class="form-action-buttons">
-                    <button type="submit" class="primary w-full">Enviar Respuestas</button>
-                </div>
-            </form>
-        </div>
-
-        <div id="message-modal-container"></div>
-
-        <script>
-            // Store the questions data globally once fetched
-            let allQuestions = [];
-
-            // Función para mostrar un modal personalizado
-            function showMessageModal(title, message, isError = false) {
-                const container = document.getElementById('message-modal-container');
-                if (container.firstChild) {
-                    container.innerHTML = '';
-                }
-
-                const modalOverlay = document.createElement('div');
-                modalOverlay.className = 'modal-overlay';
-                modalOverlay.innerHTML = `
-                    <div class="modal-content">
-                        <h3 class="${isError ? 'text-red-600' : 'text-blue-600'}">${title}</h3>
-                        <p>${message}</p>
-                        <button id="modal-close-button">Cerrar</button>
+        <form id="questions-form">
+            <div id="lista-preguntas" class="space-y-6">
+                <div class="question-card">
+                    <div class="question-header">
+                        <p class="question-text">Nombre de la tienda:</p>
                     </div>
-                `;
-                container.appendChild(modalOverlay);
+                    <div class="input-group">
+                        <input type="text" id="storeName" name="storeName" class="text-input" placeholder="Se llenará automáticamente" readonly>
+                    </div>
+                </div>
 
-                const closeButton = document.getElementById('modal-close-button');
-                closeButton.addEventListener('click', () => {
-                    container.innerHTML = '';
-                });
+                <div class="question-card">
+                    <div class="question-header">
+                        <p class="question-text">Ubicación de la tienda:</p>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="storeLocation" name="storeLocation" class="text-input" placeholder="Se llenará automáticamente" readonly>
+                    </div>
+                </div>
+
+                <div class="question-card">
+                    <div class="question-header">
+                        <p class="question-text">¿Has usado la app Tuali para realizar pedidos o consultar información?</p>
+                    </div>
+                    <div class="input-group">
+                        <label><input type="radio" name="q10" value="Sí" class="mr-3 w-5 h-5 accent-blue-500"> Sí</label>
+                    </div>
+                    <div class="input-group">
+                        <label><input type="radio" name="q10" value="No" class="mr-3 w-5 h-5 accent-blue-500"> No</label>
+                    </div>
+                </div>
+
+                <div class="question-card hidden" id="question-card-q11">
+                    <div class="question-header">
+                        <p class="question-text">Si has usado Tuali, ¿cómo calificarías su facilidad de uso?</p>
+                    </div>
+                    <div class="input-group">
+                        <label><input type="radio" name="q11" value="1" class="mr-3 w-5 h-5 accent-blue-500"> 1 (Muy difícil)</label>
+                    </div>
+                    <div class="input-group">
+                        <label><input type="radio" name="q11" value="2" class="mr-3 w-5 h-5 accent-blue-500"> 2</label>
+                    </div>
+                    <div class="input-group">
+                        <label><input type="radio" name="q11" value="3" class="mr-3 w-5 h-5 accent-blue-500"> 3 (Neutral)</label>
+                    </div>
+                    <div class="input-group">
+                        <label><input type="radio" name="q11" value="4" class="mr-3 w-5 h-5 accent-blue-500"> 4</label>
+                    </div>
+                    <div class="input-group">
+                        <label><input type="radio" name="q11" value="5" class="mr-3 w-5 h-5 accent-blue-500"> 5 (Muy fácil)</label>
+                    </div>
+                </div>
+
+                <div class="question-card hidden" id="question-card-q12">
+                    <div class="question-header">
+                        <p class="question-text">¿Podrías explicarnos por qué le diste esa calificación a la facilidad de uso de Tuali?</p>
+                    </div>
+                    <div class="input-group">
+                        <textarea name="q12" placeholder="Tu respuesta..." class="text-input"></textarea>
+                    </div>
+                </div>
+
+                <div class="question-card">
+                    <div class="question-header">
+                        <p class="question-text">¿Has experimentado algún problema técnico al utilizar la app Tuali?</p>
+                    </div>
+                    <div class="input-group">
+                        <label><input type="radio" name="q15" value="Sí" class="mr-3 w-5 h-5 accent-blue-500"> Sí</label>
+                    </div>
+                    <div class="input-group">
+                        <label><input type="radio" name="q15" value="No" class="mr-3 w-5 h-5 accent-blue-500"> No</label>
+                    </div>
+                </div>
+
+                <div class="question-card hidden" id="question-card-q16">
+                    <div class="question-header">
+                        <p class="question-text">En caso de haber tenido problemas con Tuali, describe brevemente qué ocurrió.</p>
+                    </div>
+                    <div class="input-group">
+                        <textarea name="q16" placeholder="Describe el problema aquí..." class="text-input"></textarea>
+                    </div>
+                </div>
+
+                </div>
+
+            <div class="form-action-buttons">
+                <button type="submit" class="primary w-full">Enviar Respuestas</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="message-modal-container"></div>
+
+    <script>
+        let socket; // Declare socket globally
+
+        // Función para mostrar un modal personalizado
+        function showMessageModal(title, message, isError = false) {
+            const container = document.getElementById('message-modal-container');
+            if (container.firstChild) {
+                container.innerHTML = '';
             }
 
-            document.addEventListener('DOMContentLoaded', () => {
-                const listaPreguntasContainer = document.getElementById('lista-preguntas');
-                const questionsForm = document.getElementById('questions-form');
-                const navbarContainer = document.getElementById('navbar-container'); // Get the navbar container
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'modal-overlay';
+            modalOverlay.innerHTML = `
+                <div class="modal-content">
+                    <h3 class="${isError ? 'text-red-600' : 'text-blue-600'}">${title}</h3>
+                    <p>${message}</p>
+                    <button id="modal-close-button">Cerrar</button>
+                </div>
+            `;
+            container.appendChild(modalOverlay);
 
-                // Function to load the navbar
-                async function loadNavbar() {
-                    try {
-                        const response = await fetch('/navbar.html'); // Assuming navbar.html is at the root
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        navbarContainer.innerHTML = await response.text();
-                    } catch (error) {
-                        console.error('Error loading navbar:', error);
-                        // Optionally, show a message if navbar fails to load
-                    }
-                }
+            const closeButton = document.getElementById('modal-close-button');
+            closeButton.addEventListener('click', () => {
+                container.innerHTML = '';
+            });
+        }
 
-                // ID de las preguntas relevantes y sus dependencias
-                const problemWithTualiId = 'q15'; // "¿Has experimentado algún problema técnico al utilizar la app Tuali?"
-                const describeProblemId = 'q16'; // "En caso de haber tenido problemas con Tuali, describe brevemente qué ocurrió."
-                const usedTualiId = 'q10'; // "¿Has usado la app Tuali para realizar pedidos o consultar información?"
-                const easeOfUseRatingId = 'q11'; // "Si has usado Tuali, ¿cómo calificarías su facilidad de uso?"
-                const explainRatingId = 'q12'; // "¿Podrías explicarnos por qué le diste esa calificación a la facilidad de uso de Tuali?"
+        document.addEventListener('DOMContentLoaded', () => {
+            const questionsForm = document.getElementById('questions-form');
+            const navbarContainer = document.getElementById('navbar-container');
 
-                // Elementos de las preguntas a ocultar/mostrar (se inicializan a null y se asignan después de la carga)
-                let describeProblemCard = null;
-                let easeOfUseRatingCard = null; 
-                let explainRatingCard = null;
+            // Get references to specific input fields for store data
+            const storeNameInput = document.getElementById('storeName');
+            const storeLocationInput = document.getElementById('storeLocation');
 
-                // Helper function to hide a question card and clear its input
-                function hideQuestionAndClear(questionCard) {
-                    if (questionCard) {
-                        questionCard.classList.add('hidden');
-                        const inputs = questionCard.querySelectorAll('input, textarea'); // Select both input and textarea
-                        inputs.forEach(input => {
-                            if (input.type === 'text' || input.tagName === 'TEXTAREA') {
-                                input.value = '';
-                            } else if (input.type === 'radio' || input.type === 'checkbox') {
-                                input.checked = false;
-                            }
-                        });
-                    }
-                }
+            // --- Dependency Management for Questions ---
+            const problemWithTualiId = 'q15'; // "¿Has experimentado algún problema técnico al utilizar la app Tuali?"
+            const describeProblemId = 'q16'; // "En caso de haber tenido problemas con Tuali, describe brevemente qué ocurrió."
+            const usedTualiId = 'q10'; // "¿Has usado la app Tuali para realizar pedidos o consultar información?"
+            const easeOfUseRatingId = 'q11'; // "Si has usado Tuali, ¿cómo calificarías su facilidad de uso?"
+            const explainRatingId = 'q12'; // "¿Podrías explicarnos por qué le diste esa calificación a la facilidad de uso de Tuali?"
 
-                // Helper function to show a question card
-                function showQuestion(questionCard) {
-                    if (questionCard) {
-                        questionCard.classList.remove('hidden');
-                    }
-                }
+            // Elementos de las preguntas a ocultar/mostrar (ahora directamente referenciados por ID del HTML)
+            const describeProblemCard = document.getElementById(`question-card-${describeProblemId}`);
+            const easeOfUseRatingCard = document.getElementById(`question-card-${easeOfUseRatingId}`);
+            const explainRatingCard = document.getElementById(`question-card-${explainRatingId}`);
 
-                // Function to manage visibility of q16 based on q15
-                function handleProblemWithTualiChange() {
-                    const problemWithTualiValue = document.querySelector(`input[name="${problemWithTualiId}"]:checked`)?.value;
-                    if (problemWithTualiValue === 'Sí') {
-                        showQuestion(describeProblemCard);
-                    } else {
-                        hideQuestionAndClear(describeProblemCard);
-                    }
-                }
-
-                // Function to manage visibility of q11 and q12 based on q10
-                function handleUsedTualiChange() {
-                    const usedTualiValue = document.querySelector(`input[name="${usedTualiId}"]:checked`)?.value;
-
-                    if (usedTualiValue === 'Sí') {
-                        showQuestion(easeOfUseRatingCard); // Show q11 card
-                        // Now, attach event listener to q11 if it's visible
-                        const easeOfUseRatingInputs = document.querySelectorAll(`input[name="${easeOfUseRatingId}"]`);
-                        easeOfUseRatingInputs.forEach(input => {
-                            // Remove existing listener to prevent duplicates on subsequent calls
-                            input.removeEventListener('change', handleEaseOfUseRatingChange); 
-                            input.addEventListener('change', handleEaseOfUseRatingChange);
-                        });
-                        // Re-evaluate q12 visibility based on current q11 state (if any selection was made)
-                        handleEaseOfUseRatingChange();
-
-                    } else {
-                        // Hide q11 and q12 if Tuali is not used
-                        hideQuestionAndClear(easeOfUseRatingCard); // Hide q11
-                        hideQuestionAndClear(explainRatingCard);    // Hide q12
-                    }
-                }
-
-                // Function to manage visibility of q12 based on q11 rating
-                function handleEaseOfUseRatingChange() {
-                    const easeOfUseRatingValue = document.querySelector(`input[name="${easeOfUseRatingId}"]:checked`)?.value;
-                    // Define what a "low rating" is (1, 2, or 3 as strings)
-                    const lowRatings = ['1', '2', '3'];
-
-                    if (lowRatings.includes(easeOfUseRatingValue)) {
-                        showQuestion(explainRatingCard);
-                    } else {
-                        hideQuestionAndClear(explainRatingCard);
-                    }
-                }
-
-                // Función para cargar y renderizar preguntas
-                async function loadAndRenderQuestions() {
-                    try {
-                        // Fetch questions from your backend
-                        const response = await fetch('/api/preguntas');
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        const preguntas = await response.json();
-                        allQuestions = preguntas; // Store for later use in form submission
-
-                        listaPreguntasContainer.innerHTML = ''; // Limpiar antes de re-renderizar
-
-                        if (preguntas.length === 0) {
-                            listaPreguntasContainer.innerHTML = '<p class="text-center text-gray-500">No hay preguntas disponibles.</p>';
-                            return;
-                        }
-
-                        preguntas.forEach(p => {
-                            const questionCard = document.createElement('div');
-                            questionCard.className = 'question-card';
-                            questionCard.id = `question-card-${p.id}`; // Add ID for easy selection
-
-                            const questionHeader = document.createElement('div');
-                            questionHeader.className = 'question-header';
-
-                            const questionText = document.createElement('p');
-                            questionText.className = 'question-text';
-                            questionText.textContent = `${p.texto}`;
-
-                            questionHeader.appendChild(questionText);
-                            
-                            questionCard.appendChild(questionHeader); // Añadir el header con el texto
-
-                            const optionsContainer = document.createElement('div');
-                            optionsContainer.className = 'space-y-2'; // Tailwind for vertical spacing
-
-                            // Renderizar las opciones interactivas
-                            if (p.tipo === 'opciones') {
-                                p.opciones.split(',').map(o => o.trim()).forEach((opcion) => {
-                                    const inputGroup = document.createElement('div');
-                                    inputGroup.className = 'input-group';
-                                    inputGroup.innerHTML = `
-                                        <label>
-                                            <input type="radio" name="${p.id}" value="${opcion}" class="mr-3 w-5 h-5 accent-blue-500">
-                                            ${opcion}
-                                        </label>
-                                    `;
-                                    optionsContainer.appendChild(inputGroup);
-                                });
-                            } else if (p.tipo === 'checkbox') {
-                                p.opciones.split(',').map(o => o.trim()).forEach((opcion) => {
-                                    const inputGroup = document.createElement('div');
-                                    inputGroup.className = 'input-group';
-                                    inputGroup.innerHTML = `
-                                        <label>
-                                            <input type="checkbox" name="${p.id}" value="${opcion}" class="mr-3 w-5 h-5 accent-blue-500">
-                                            ${opcion}
-                                        </label>
-                                    `;
-                                    optionsContainer.appendChild(inputGroup);
-                                });
-                            } else if (p.tipo === 'texto') {
-                                const inputGroup = document.createElement('div');
-                                inputGroup.className = 'input-group';
-                                // Use textarea for 'texto' type questions for multi-line input
-                                inputGroup.innerHTML = `
-                                    <textarea name="${p.id}" placeholder="Tu respuesta..." class="text-input"></textarea>
-                                `;
-                                optionsContainer.appendChild(inputGroup);
-                            }
-
-                            questionCard.appendChild(optionsContainer);
-                            listaPreguntasContainer.appendChild(questionCard);
-
-                            // Store references to dependent question cards
-                            if (p.id === describeProblemId) { // q16
-                                describeProblemCard = questionCard;
-                            }
-                            if (p.id === easeOfUseRatingId) { // q11
-                                easeOfUseRatingCard = questionCard;
-                            }
-                            if (p.id === explainRatingId) { // q12
-                                explainRatingCard = questionCard;
-                            }
-                        });
-
-                        // Initial state for dependent questions: hidden
-                        hideQuestionAndClear(describeProblemCard);
-                        hideQuestionAndClear(easeOfUseRatingCard); 
-                        hideQuestionAndClear(explainRatingCard);
-
-                        // Add event listeners for controlling questions
-                        const problemWithTualiInputs = document.querySelectorAll(`input[name="${problemWithTualiId}"]`); // q15
-                        problemWithTualiInputs.forEach(input => {
-                            input.addEventListener('change', handleProblemWithTualiChange);
-                        });
-
-                        const usedTualiInputs = document.querySelectorAll(`input[name="${usedTualiId}"]`); // q10
-                        usedTualiInputs.forEach(input => {
-                            input.addEventListener('change', handleUsedTualiChange);
-                        });
-
-                    } catch (error) {
-                        console.error('Error:', error);
-                        showMessageModal('Error de Carga', error.message || 'No se pudieron cargar las preguntas. Inténtalo de nuevo más tarde.', true);
-                    }
-                }
-
-                // Cargar barra de navegación al inicio
-                loadNavbar();
-                // Cargar preguntas al inicio
-                loadAndRenderQuestions();
-
-                // Manejar el envío del formulario de respuestas
-                questionsForm.addEventListener('submit', async function(event) { // Make the function async
-                    event.preventDefault(); // Evitar el envío por defecto del formulario
-
-                    const allFormResponses = {}; // To collect all responses, visible or not (for potential future use)
-                    const textResponsesForKeywordDetection = {}; // To collect ONLY text type responses for the backend
-                    const formData = new FormData(questionsForm);
-
-                    // Collect all responses first, and specifically filter text-type responses for keyword detection
-                    for (let [name, value] of formData.entries()) {
-                        const questionId = name; // The name directly is the question ID now
-
-                        // Find the original question object to get its type
-                        const question = allQuestions.find(q => q.id === questionId);
-
-                        if (!question) {
-                            console.warn(`Question with ID ${questionId} not found in loaded questions. Skipping.`);
-                            continue;
-                        }
-
-                        // For checkboxes, FormData.entries() might return multiple entries for the same name if multiple are selected.
-                        // We need to handle this by storing values as an array.
-                        if (question.tipo === 'checkbox') {
-                            if (!allFormResponses[name]) {
-                                allFormResponses[name] = [];
-                            }
-                            allFormResponses[name].push(value);
-                        } else {
-                            // For text and radio buttons, the value is direct
-                            allFormResponses[name] = value;
-                        }
-                        
-                        // Crucial: Only add text type responses to the specific object for keyword detection
-                        if (question.tipo === 'texto') {
-                            // Only send the text if the question was visible, or if it's a controlling question whose value might be needed
-                            // even if the follow-up text field is hidden. For text fields, we usually only care about visible ones.
-                            const questionCardElement = document.getElementById(`question-card-${questionId}`);
-                            if (questionCardElement && !questionCardElement.classList.contains('hidden') && value.trim() !== '') {
-                                textResponsesForKeywordDetection[questionId] = value;
-                            }
-                        }
-                    }
-
-                    console.log('Todas las respuestas del formulario (incluidas no-texto y visibles):', allFormResponses);
-                    console.log('Respuestas de texto para detección de palabras clave:', textResponsesForKeywordDetection);
-
-                    // Send ONLY textResponsesForKeywordDetection to the backend
-                    try {
-                        const response = await fetch('/submit-survey', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(textResponsesForKeywordDetection), // Send only the filtered text responses
-                        });
-
-                        if (!response.ok) {
-                            const errorData = await response.json();
-                            throw new Error(errorData.message || 'Error al enviar las respuestas.');
-                        }
-                        const data = await response.json();
-                        
-                        let successMessage = 'Tus respuestas han sido registradas. Gracias por participar.';
-                        if (data.keywords && Object.keys(data.keywords).length > 0) {
-                            successMessage += '\nPalabras clave detectadas:';
-                            for (const qId in data.keywords) {
-                                if (data.keywords[qId].length > 0) { // Only show if keywords were actually detected for that question
-                                    successMessage += `\n   ${qId}: [${data.keywords[qId].join(', ')}]`;
-                                }
-                            }
-                        } else {
-                            successMessage += '\nNo se detectaron palabras clave en tus respuestas de texto.';
-                        }
-
-                        showMessageModal('¡Respuestas Enviadas!', successMessage, false);
-                        questionsForm.reset();
-                        // Desmarcar radio buttons and checkboxes
-                        document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(input => {
+            // Helper function to hide a question card and clear its input
+            function hideQuestionAndClear(questionCard) {
+                if (questionCard) {
+                    questionCard.classList.add('hidden');
+                    const inputs = questionCard.querySelectorAll('input, textarea');
+                    inputs.forEach(input => {
+                        if (input.type === 'text' || input.tagName === 'TEXTAREA') {
+                            input.value = '';
+                        } else if (input.type === 'radio' || input.type === 'checkbox') {
                             input.checked = false;
-                        });
-                        // Re-hide all dependent questions to reset the form's state
-                        hideQuestionAndClear(describeProblemCard);
-                        hideQuestionAndClear(easeOfUseRatingCard);
-                        hideQuestionAndClear(explainRatingCard);
+                        }
+                    });
+                }
+            }
 
-                    } catch (error) {
-                        console.error('Error al enviar:', error);
-                        showMessageModal('Error al Enviar', error.message || 'No se pudieron enviar las respuestas. Inténtalo de nuevo más tarde.', true);
+            // Helper function to show a question card
+            function showQuestion(questionCard) {
+                if (questionCard) {
+                    questionCard.classList.remove('hidden');
+                }
+            }
+
+            // Function to manage visibility of q16 based on q15
+            function handleProblemWithTualiChange() {
+                const problemWithTualiValue = document.querySelector(`input[name="${problemWithTualiId}"]:checked`)?.value;
+                if (problemWithTualiValue === 'Sí') {
+                    showQuestion(describeProblemCard);
+                } else {
+                    hideQuestionAndClear(describeProblemCard);
+                }
+            }
+
+            // Function to manage visibility of q11 and q12 based on q10
+            function handleUsedTualiChange() {
+                const usedTualiValue = document.querySelector(`input[name="${usedTualiId}"]:checked`)?.value;
+
+                if (usedTualiValue === 'Sí') {
+                    showQuestion(easeOfUseRatingCard); // Show q11 card
+                    // Attach event listener to q11 for its own dependency (q12)
+                    const easeOfUseRatingInputs = document.querySelectorAll(`input[name="${easeOfUseRatingId}"]`);
+                    easeOfUseRatingInputs.forEach(input => {
+                        input.removeEventListener('change', handleEaseOfUseRatingChange); // Prevent duplicates
+                        input.addEventListener('change', handleEaseOfUseRatingChange);
+                    });
+                    // Re-evaluate q12 visibility based on current q11 state (if any selection was made)
+                    handleEaseOfUseRatingChange();
+
+                } else {
+                    // Hide q11 and q12 if Tuali is not used
+                    hideQuestionAndClear(easeOfUseRatingCard);
+                    hideQuestionAndClear(explainRatingCard);
+                }
+            }
+
+            // Function to manage visibility of q12 based on q11 rating
+            function handleEaseOfUseRatingChange() {
+                const easeOfUseRatingValue = document.querySelector(`input[name="${easeOfUseRatingId}"]:checked`)?.value;
+                const lowRatings = ['1', '2', '3']; // Define what a "low rating" is
+
+                if (lowRatings.includes(easeOfUseRatingValue)) {
+                    showQuestion(explainRatingCard);
+                } else {
+                    hideQuestionAndClear(explainRatingCard);
+                }
+            }
+            
+            // Function to load the navbar
+            async function loadNavbar() {
+                try {
+                    const response = await fetch('/navbar.html');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    navbarContainer.innerHTML = await response.text();
+                } catch (error) {
+                    console.error('Error loading navbar:', error);
+                }
+            }
+
+            // --- WebSocket Connection ---
+            function connectWebSocket() {
+                // Connect to WebSocket on port 3000
+                socket = new WebSocket(`ws://${window.location.hostname}:3000/ws`);
+
+                socket.onopen = () => {
+                    console.log('WebSocket connected to port 3000.');
+                    // You might want to send a message to request initial store data here if needed,
+                    // or assume the server will send it upon connection.
+                    // socket.send(JSON.stringify({ type: 'requestStoreData' }));
+                };
+
+                socket.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    console.log('Received message:', message);
+
+                    // Handle incoming messages to fill specific fields
+                    if (message.type === 'storeInfo') {
+                        const { storeName, storeLocation, cardId } = message.data;
+                        if (storeNameInput) {
+                            storeNameInput.value = storeName || 'N/A';
+                        }
+                        if (storeLocationInput) {
+                            storeLocationInput.value = storeLocation || 'N/A';
+                        }
+                        console.log(`Datos de tienda recibidos para Tarjeta ID: ${cardId}`);
+                        showMessageModal('Información de Tienda Recibida', `Nombre: ${storeName || 'N/A'}\nUbicación: ${storeLocation || 'N/A'}`, false);
+                    } else if (message.type === 'error') {
+                        showMessageModal('Error del Servidor', message.message, true);
+                    }
+                    // You can add more message types here for other dynamic data if needed
+                };
+
+                socket.onclose = (event) => {
+                    console.log('WebSocket disconnected:', event);
+                    // Only show reconnection message if it was an unexpected close
+                    if (!event.wasClean) {
+                        showMessageModal('Conexión Perdida', 'Se ha perdido la conexión con el servidor. Intentando reconectar...', true);
+                        setTimeout(connectWebSocket, 3000); // Attempt to reconnect after a delay
+                    } else {
+                         console.log('WebSocket closed cleanly.');
+                    }
+                };
+
+                socket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    showMessageModal('Error de Conexión', 'No se pudo establecer la conexión con el servidor. Verifica tu conexión.', true);
+                    socket.close(); // Close the socket to trigger onclose and retry
+                };
+            }
+
+            // Load navbar and connect WebSocket when the DOM is ready
+            loadNavbar();
+            connectWebSocket();
+
+            // Initial setup of dependent question visibility and event listeners
+            // It's important to attach these listeners AFTER the HTML elements exist.
+            // These event listeners will control the dynamic visibility of q11, q12, q16.
+            
+            // Listener for q10 (used Tuali?)
+            document.querySelectorAll(`input[name="${usedTualiId}"]`).forEach(input => {
+                input.addEventListener('change', handleUsedTualiChange);
+            });
+
+            // Listener for q15 (problem with Tuali?)
+            document.querySelectorAll(`input[name="${problemWithTualiId}"]`).forEach(input => {
+                input.addEventListener('change', handleProblemWithTualiChange);
+            });
+
+            // Initial hide for dependent questions
+            hideQuestionAndClear(describeProblemCard);
+            hideQuestionAndClear(easeOfUseRatingCard);
+            hideQuestionAndClear(explainRatingCard);
+
+
+            // Handle form submission
+            questionsForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+
+                const responsesToSend = {};
+                const formData = new FormData(questionsForm);
+
+                // Collect responses only from visible fields and predefined store fields
+                for (let [name, value] of formData.entries()) {
+                    // Always include storeName and storeLocation
+                    if (name === 'storeName' || name === 'storeLocation') {
+                        responsesToSend[name] = value;
+                        continue; // Move to next form entry
+                    }
+
+                    // For other questions, check if their card is visible
+                    const questionCardElement = document.getElementById(`question-card-${name}`);
+                    // If it's a direct input (not part of a card like storeName/Location) or its card is visible
+                    if (!questionCardElement || !questionCardElement.classList.contains('hidden')) {
+                        // Handle checkboxes which can have multiple values
+                        if (questionsForm.querySelector(`input[name="${name}"][type="checkbox"]`)) {
+                            if (!responsesToSend[name]) {
+                                responsesToSend[name] = [];
+                            }
+                            responsesToSend[name].push(value);
+                        } else {
+                            // For radio and text inputs, assign directly
+                            responsesToSend[name] = value;
+                        }
+                    }
+                }
+                
+                // Add an explicit check for radio buttons (q10, q11, q15) because FormData might not include unchecked ones
+                // This ensures we capture the *absence* of a selection for radio questions that are visible.
+                const radioQuestions = ['q10', 'q11', 'q15'];
+                radioQuestions.forEach(qId => {
+                    const questionCardElement = document.getElementById(`question-card-${qId}`);
+                    // Only check if the question card is visible (or if it's q10 which is always visible)
+                    if (qId === 'q10' || (questionCardElement && !questionCardElement.classList.contains('hidden'))) {
+                        const selectedRadio = document.querySelector(`input[name="${qId}"]:checked`);
+                        if (!selectedRadio && !responsesToSend.hasOwnProperty(qId)) {
+                            responsesToSend[qId] = null; // Or some indicator that it was unanswered
+                        }
+                    } else if (questionCardElement && questionCardElement.classList.contains('hidden')) {
+                         // Ensure hidden questions are not sent or explicitly null/empty if that's desired
+                         // For this scenario, we only send what's visible, so no need to explicitly null them if they're hidden.
+                         // They just won't be in `responsesToSend` if they were hidden and unanswered.
                     }
                 });
+
+                console.log('Respuestas a enviar:', responsesToSend);
+
+                if (Object.keys(responsesToSend).length === 0 || 
+                    (Object.keys(responsesToSend).length === 2 && responsesToSend.hasOwnProperty('storeName') && responsesToSend.hasOwnProperty('storeLocation') && !responsesToSend['storeName'] && !responsesToSend['storeLocation'])) {
+                    showMessageModal('Atención', 'Por favor, rellena al menos una pregunta o espera la información de la tienda antes de enviar.', false);
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/submit-survey', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(responsesToSend), // Send all visible responses
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Error al enviar las respuestas.');
+                    }
+                    const data = await response.json();
+                    
+                    let successMessage = 'Tus respuestas han sido registradas. Gracias por participar.';
+                    // If backend returns keywords, display them
+                    if (data.keywords && Object.keys(data.keywords).length > 0) {
+                        successMessage += '\nPalabras clave detectadas:';
+                        for (const qId in data.keywords) {
+                            if (data.keywords[qId].length > 0) {
+                                successMessage += `\n    ${qId}: [${data.keywords[qId].join(', ')}]`;
+                            }
+                        }
+                    } else {
+                        successMessage += '\nNo se detectaron palabras clave en tus respuestas de texto.';
+                    }
+
+                    showMessageModal('¡Respuestas Enviadas!', successMessage, false);
+                    questionsForm.reset(); // Clear all form fields
+                    // Re-hide dependent questions after resetting
+                    hideQuestionAndClear(describeProblemCard);
+                    hideQuestionAndClear(easeOfUseRatingCard);
+                    hideQuestionAndClear(explainRatingCard);
+
+                } catch (error) {
+                    console.error('Error al enviar:', error);
+                    showMessageModal('Error al Enviar', error.message || 'No se pudieron enviar las respuestas. Inténtalo de nuevo más tarde.', true);
+                }
             });
-        </script>
-    </body>
-    </html>
+        });
+    </script>
+</body>
+</html>

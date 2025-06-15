@@ -33,6 +33,9 @@ console.log(`--- app.js: Puerto configurado a ${PORT} ---`);
 let users = []; // Declarar users en un scope más alto
 const USERS_DB_PATH = path.join(__dirname, 'users_db.json');
 
+console.log("ADMIN_USER:", process.env.ADMIN_USER);
+console.log("SUPERUSER_USER:", process.env.SUPERUSER_USER);
+
 
 async function loadUsers() {
     try {
